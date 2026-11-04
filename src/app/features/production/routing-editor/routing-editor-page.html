@@ -33,7 +33,7 @@
         <h2 class="card__title"><app-icon name="route" [size]="18" /> العمليات</h2>
         <p class="card__subtitle">انقر على أي عملية لتحرير كامل تفاصيلها — يتم الحفظ تلقائياً</p>
       </div>
-      <button type="button" class="btn btn--primary btn--sm" (click)="add()"><app-icon name="plus" [size]="15" /> إضافة عملية</button>
+      <button *appCan="'routing.edit'" type="button" class="btn btn--primary btn--sm" (click)="add()"><app-icon name="plus" [size]="15" /> إضافة عملية</button>
     </div>
     <div class="table-wrap">
       <table class="table ops">
@@ -90,7 +90,7 @@
               <td class="num"><strong>{{ row.cost | money }}</strong></td>
               <td style="min-width: 130px"><app-progress-bar [value]="row.progress" /></td>
               <td>
-                <input type="checkbox" class="check" [checked]="row.op.completed" (change)="toggleCompleted(row.op, $any($event.target).checked)" aria-label="تم التنفيذ" />
+                <input type="checkbox" class="check" [disabled]="!canEdit()" [checked]="row.op.completed" (change)="toggleCompleted(row.op, $any($event.target).checked)" aria-label="تم التنفيذ" />
               </td>
               <td>
                 <span class="badge" [class.badge--success]="row.op.qcStatus === 'passed'" [class.badge--danger]="row.op.qcStatus === 'rejected'">
@@ -100,7 +100,7 @@
               <td>
                 <div class="row">
                   <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تحرير" (click)="edit(row.op)"><app-icon name="edit" [size]="15" /></button>
-                  <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="remove(row.op)"><app-icon name="trash" [size]="15" /></button>
+                  <button *appCan="'routing.edit'" type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="remove(row.op)"><app-icon name="trash" [size]="15" /></button>
                 </div>
               </td>
             </tr>
@@ -108,7 +108,7 @@
             <tr>
               <td colspan="11">
                 <app-empty-state icon="route" title="لم تُعرّف عمليات بعد" text="أنشئ جدول المسار بإضافة العمليات بالتسلسل (10، 20، 30...).">
-                  <button type="button" class="btn btn--primary btn--sm" (click)="add()"><app-icon name="plus" [size]="15" /> إضافة أول عملية</button>
+                  <button *appCan="'routing.edit'" type="button" class="btn btn--primary btn--sm" (click)="add()"><app-icon name="plus" [size]="15" /> إضافة أول عملية</button>
                 </app-empty-state>
               </td>
             </tr>
@@ -118,9 +118,9 @@
     </div>
   </section>
 
-  <app-modal [(open)]="drawerOpen" mode="drawer" width="620px" [title]="editing() ? 'العملية ' + editing()!.sequence + ' — ' + editing()!.name : 'العملية'" subtitle="الحفظ تلقائي عند كل تعديل">
+  <app-modal [(open)]="drawerOpen" mode="drawer" width="620px" [title]="editing() ? 'العملية ' + editing()!.sequence + ' — ' + editing()!.name : 'العملية'" [subtitle]="canEdit() ? 'الحفظ تلقائي عند كل تعديل' : 'عرض فقط حسب صلاحياتك'">
     @if (editing(); as op) {
-      <app-operation-form [operation]="op" />
+      <app-operation-form [operation]="op" [readonly]="!canEdit()" />
     }
     <ng-container modal-actions>
       <button type="button" class="btn btn--primary" (click)="drawerOpen.set(false)"><app-icon name="check" [size]="16" /> تم</button>

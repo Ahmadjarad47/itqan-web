@@ -30,7 +30,7 @@
       <div>
         <dt>الأولوية</dt>
         <dd>
-          <select class="select input--sm" (change)="setPriority($any($event.target).value)">
+          <select class="select input--sm" [disabled]="!canManage()" (change)="setPriority($any($event.target).value)">
             @for (p of priorities; track p) {
               <option [value]="p" [selected]="p === r.priority">{{ priorityLabels[p] }}</option>
             }
@@ -40,9 +40,23 @@
     </dl>
     <div class="head__ring">
       <app-progress-ring [value]="progress()" [size]="92" [stroke]="3" />
-      <button type="button" class="btn btn--danger btn--sm" (click)="remove()"><app-icon name="trash" [size]="14" /> حذف</button>
+      <button *appCan="'procurement.manage'" type="button" class="btn btn--danger btn--sm" (click)="remove()"><app-icon name="trash" [size]="14" /> حذف</button>
     </div>
   </header>
+
+  @if (customFields().length) {
+    <section class="card custom">
+      <div class="card__header">
+        <h2 class="card__title"><app-icon name="layers" [size]="17" /> الحقول المخصصة</h2>
+        @if (missing().length) {
+          <span class="badge badge--warning">ناقص: {{ missing().join('، ') }}</span>
+        }
+      </div>
+      <div class="card__body">
+        <app-custom-fields-form [fields]="customFields()" [values]="r.customFields" [disabled]="!canManage()" (changed)="setCustomField($event)" />
+      </div>
+    </section>
+  }
 
   <section class="timeline">
     @for (def of definitions; track def.key; let i = $index) {
@@ -87,7 +101,7 @@
           </button>
 
           @if (openStage() === def.key) {
-            <div class="stage__body" animate.enter="enter-fade">
+            <fieldset class="guard stage__body" [disabled]="!canManage()" animate.enter="enter-fade">
               @switch (def.key) {
                 @case ('rfqSent') {
                   <h4 class="section-title">عروض الموردين</h4>
@@ -181,7 +195,7 @@
                   }
                 </button>
               </div>
-            </div>
+            </fieldset>
           }
         </div>
       </article>

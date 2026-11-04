@@ -9,8 +9,8 @@
       و<strong>{{ kpi.openPurchases }}</strong> طلب شراء مفتوح.
     </p>
     <div class="hero__actions">
-      <a class="btn btn--accent" routerLink="/projects"><app-icon name="tree" [size]="17" /> استعراض شجرة المنتج</a>
-      <a class="btn hero__ghost" routerLink="/production/gantt"><app-icon name="gantt" [size]="17" /> مخطط جانت</a>
+      <a *appCan="'projects.view'" class="btn btn--accent" routerLink="/projects"><app-icon name="tree" [size]="17" /> استعراض شجرة المنتج</a>
+      <a *appCan="'production.view'" class="btn hero__ghost" routerLink="/production/gantt"><app-icon name="gantt" [size]="17" /> مخطط جانت</a>
     </div>
   </div>
   <app-logo class="hero__logo" variant="light" [size]="190" />

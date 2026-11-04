@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DashboardQuery } from '@application/queries/dashboard.query';
 import { SessionStore } from '@application/state/session.store';
+import { CanDirective } from '@core/auth/can.directive';
 import { PROJECT_STATUS_LABELS } from '@domain/models';
 import { ArDatePipe, MoneyPipe } from '@shared/pipes/format.pipes';
 import { Icon } from '@shared/ui/icon/icon';
@@ -12,7 +13,7 @@ import { StatCard } from '@shared/ui/stat-card/stat-card';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [RouterLink, StatCard, Icon, Logo, ProgressRing, ProgressBar, ProductVisual, MoneyPipe, ArDatePipe],
+  imports: [RouterLink, CanDirective, StatCard, Icon, Logo, ProgressRing, ProgressBar, ProductVisual, MoneyPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.scss',

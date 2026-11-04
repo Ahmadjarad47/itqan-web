@@ -1,0 +1,118 @@
+<app-page-header
+  title="المستخدمون"
+  subtitle="إضافة المستخدمين وإسناد الأدوار وتفعيل الحسابات أو تعطيلها"
+  eyebrow="إدارة النظام"
+  icon="users"
+>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مستخدم جديد</button>
+</app-page-header>
+
+@let s = stats();
+<section class="card">
+  <div class="filters toolbar">
+    <div class="search-box">
+      <app-icon name="search" [size]="16" />
+      <input class="input input--sm" placeholder="بحث بالاسم أو المسمى أو البريد" [value]="search()" (input)="search.set($any($event.target).value)" />
+    </div>
+    <div class="chips">
+      <button type="button" class="chip" [class.active]="!roleFilter()" (click)="roleFilter.set('')">الكل <span class="count num">{{ s.total }}</span></button>
+      @for (r of roles.sorted(); track r.id) {
+        <button type="button" class="chip" [class.active]="roleFilter() === r.id" (click)="roleFilter.set(r.id)">
+          <i class="dot" [style.background]="r.color"></i>{{ r.name }}
+          <span class="count num">{{ employees.withRole(r.id).length }}</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>المستخدم</th>
+          <th>القسم</th>
+          <th>البريد</th>
+          <th>الدور</th>
+          <th>الحالة</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.user.id) {
+          <tr [class.inactive]="!row.user.active">
+            <td>
+              <div class="row">
+                <app-avatar [name]="row.user.name" [size]="36" />
+                <span class="who">
+                  <strong>{{ row.user.name }} @if (isSelf(row.user)) {<span class="badge badge--info">أنت</span>}</strong>
+                  <small>{{ row.user.title }}</small>
+                </span>
+              </div>
+            </td>
+            <td class="muted">{{ row.department?.name }}</td>
+            <td class="ltr muted">{{ row.user.email }}</td>
+            <td>
+              <div class="role-select">
+                <i class="dot" [style.background]="row.role?.color ?? 'var(--border-strong)'"></i>
+                <select class="select input--sm" (change)="changeRole(row.user, $any($event.target))">
+                  @for (r of roles.sorted(); track r.id) {
+                    <option [value]="r.id" [selected]="r.id === row.user.roleId">{{ r.name }}</option>
+                  }
+                </select>
+              </div>
+            </td>
+            <td>
+              <button type="button" class="status" [class.on]="row.user.active" (click)="toggleActive(row.user)">
+                {{ row.user.active ? 'نشط' : 'معطّل' }}
+              </button>
+            </td>
+            <td>
+              <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تعديل" (click)="openEdit(row.user)"><app-icon name="edit" [size]="15" /></button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6"><app-empty-state icon="users" title="لا يوجد مستخدمون مطابقون" /></td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<app-modal [(open)]="dialogOpen" [title]="editingId() ? 'تعديل المستخدم' : 'مستخدم جديد'" width="560px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="user-form">
+    <label class="field span-full">
+      <span class="field__label">الاسم الكامل *</span>
+      <input class="input" formControlName="name" />
+    </label>
+    <label class="field">
+      <span class="field__label">المسمى الوظيفي *</span>
+      <input class="input" formControlName="title" />
+    </label>
+    <label class="field">
+      <span class="field__label">البريد الإلكتروني *</span>
+      <input class="input ltr" type="email" formControlName="email" />
+    </label>
+    <label class="field">
+      <span class="field__label">القسم *</span>
+      <select class="select" formControlName="departmentId">
+        <option value="">اختر...</option>
+        @for (d of departments.all(); track d.id) {
+          <option [value]="d.id">{{ d.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">الدور *</span>
+      <select class="select" formControlName="roleId">
+        @for (r of roles.sorted(); track r.id) {
+          <option [value]="r.id">{{ r.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="checkbox span-full"><input type="checkbox" formControlName="active" /> الحساب نشط</label>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="dialogOpen.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="user-form"><app-icon name="check" [size]="16" /> حفظ</button>
+  </ng-container>
+</app-modal>

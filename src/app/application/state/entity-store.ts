@@ -1,5 +1,5 @@
 import { computed, signal } from '@angular/core';
-import { Entity, EntityId } from '@domain/models';
+import { CustomFieldValue, Entity, EntityId, HasCustomFields } from '@domain/models';
 import { Repository } from '@domain/ports/repositories';
 
 /**
@@ -20,6 +20,14 @@ export abstract class EntityStore<T extends Entity> {
 
   find(id: EntityId | null | undefined): T | undefined {
     return id ? this.byId().get(id) : undefined;
+  }
+
+  /** Writes one dynamic (custom) field value on the entity. */
+  setCustomField(id: EntityId, fieldId: EntityId, value: CustomFieldValue): void {
+    this.modify(id, (entity) => {
+      const current = (entity as HasCustomFields).customFields ?? {};
+      return { ...entity, customFields: { ...current, [fieldId]: value } };
+    });
   }
 
   protected insert(entity: T): T {

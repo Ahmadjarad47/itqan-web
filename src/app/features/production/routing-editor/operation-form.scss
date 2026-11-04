@@ -29,7 +29,7 @@
 
   .total {
     color: #fff;
-    background: linear-gradient(135deg, var(--forest-800), var(--forest-950));
+    background: var(--forest-800);
     border-color: transparent;
 
     span {
@@ -112,4 +112,10 @@ input[type='range'] {
       flex: 1;
     }
   }
+}
+
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }

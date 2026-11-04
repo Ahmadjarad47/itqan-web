@@ -5,7 +5,7 @@
   icon="cart"
 >
   <a class="btn" routerLink="/procurement/suppliers"><app-icon name="truck" [size]="17" /> قائمة الموردين</a>
-  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> شراء مستقل</button>
+  <button *appCan="'procurement.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> شراء مستقل</button>
 </app-page-header>
 
 @let t = totals();

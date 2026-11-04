@@ -1,0 +1,177 @@
+<app-page-header
+  title="الأدوار والصلاحيات"
+  subtitle="التحكم بالوصول المبني على الأدوار (RBAC): كل مستخدم يحمل دوراً، وكل دور يحدد الشاشات والإجراءات المسموحة"
+  eyebrow="إدارة النظام"
+  icon="shield"
+>
+  <div class="segmented">
+    <button type="button" [class.active]="view() === 'editor'" (click)="view.set('editor')"><app-icon name="edit" [size]="15" /> محرر الدور</button>
+    <button type="button" [class.active]="view() === 'matrix'" (click)="view.set('matrix')"><app-icon name="grid" [size]="15" /> مصفوفة الصلاحيات</button>
+  </div>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> دور جديد</button>
+</app-page-header>
+
+@if (view() === 'editor') {
+  <div class="layout">
+    <aside class="card role-list">
+      @for (role of roles.sorted(); track role.id) {
+        <button type="button" class="role" [class.active]="role.id === selectedId()" (click)="selectedId.set(role.id)">
+          <span class="role__dot" [style.background]="role.color"></span>
+          <span class="role__text">
+            <strong>{{ role.name }}</strong>
+            <small class="num">{{ role.permissions.length }} / {{ total }} صلاحية · {{ employees.withRole(role.id).length }} مستخدم</small>
+          </span>
+          @if (role.system) {
+            <span class="badge">أساسي</span>
+          }
+        </button>
+      }
+    </aside>
+
+    @if (selected(); as role) {
+      <section class="stack">
+        <div class="card">
+          <div class="card__body editor-head">
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">اسم الدور</span>
+                <input class="input" [value]="role.name" (change)="rename('name', $any($event.target).value)" />
+              </label>
+              <label class="field span-2">
+                <span class="field__label">الوصف</span>
+                <input class="input" [value]="role.description" (change)="rename('description', $any($event.target).value)" />
+              </label>
+              <div class="field">
+                <span class="field__label">لون الدور</span>
+                <div class="swatches">
+                  @for (c of colors; track c) {
+                    <button type="button" class="swatch" [style.background]="c" [class.active]="c === role.color" [attr.aria-label]="c" (click)="setColor(c)"></button>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="members">
+              <span class="subtle">المستخدمون بهذا الدور</span>
+              <div class="avatars">
+                @for (m of members(); track m.id) {
+                  <app-avatar [name]="m.name" [size]="30" />
+                } @empty {
+                  <span class="subtle">لا أحد</span>
+                }
+              </div>
+              @if (!role.system) {
+                <button type="button" class="btn btn--sm btn--danger" (click)="remove(role)"><app-icon name="trash" [size]="14" /> حذف الدور</button>
+              }
+            </div>
+          </div>
+          @if (locked()) {
+            <p class="lock"><app-icon name="shield" [size]="15" /> دور مدير النظام يحتفظ دائماً بجميع الصلاحيات ولا يمكن تقييده.</p>
+          }
+        </div>
+
+        <div class="groups">
+          @for (group of groups; track group.module) {
+            @let state = groupState(role, group);
+            <div class="card group">
+              <button type="button" class="group__head" [disabled]="locked()" (click)="toggleGroup(role, group)">
+                <span class="group__icon"><app-icon [name]="group.icon" [size]="17" /></span>
+                <strong>{{ group.module }}</strong>
+                <span class="tri" [class]="'tri tri--' + state">
+                  @if (state === 'all') {
+                    <app-icon name="check" [size]="13" />
+                  } @else if (state === 'some') {
+                    <span class="dash"></span>
+                  }
+                </span>
+              </button>
+              @for (p of group.permissions; track p.key) {
+                <label class="perm" [class.on]="has(role, p.key)">
+                  <span class="perm__text">
+                    <strong>{{ p.label }}</strong>
+                    <small>{{ p.hint }}</small>
+                    <code class="ltr">{{ p.key }}</code>
+                  </span>
+                  <span class="toggle">
+                    <input type="checkbox" [checked]="has(role, p.key)" [disabled]="locked()" (change)="toggle(role, p.key)" />
+                    <span class="toggle__track"></span>
+                  </span>
+                </label>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
+  </div>
+} @else {
+  <section class="card">
+    <div class="table-wrap">
+      <table class="table matrix">
+        <thead>
+          <tr>
+            <th>الصلاحية</th>
+            @for (role of roles.sorted(); track role.id) {
+              <th>
+                <span class="matrix__role"><i [style.background]="role.color"></i>{{ role.name }}</span>
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (group of groups; track group.module) {
+            <tr class="matrix__group">
+              <td [attr.colspan]="roles.sorted().length + 1"><app-icon [name]="group.icon" [size]="14" /> {{ group.module }}</td>
+            </tr>
+            @for (p of group.permissions; track p.key) {
+              <tr>
+                <td>{{ p.label }}</td>
+                @for (role of roles.sorted(); track role.id) {
+                  <td class="center">
+                    <button
+                      type="button"
+                      class="cell"
+                      [class.on]="has(role, p.key)"
+                      [disabled]="role.id === adminRoleId"
+                      [attr.aria-label]="role.name + ': ' + p.label"
+                      (click)="toggle(role, p.key)"
+                    >
+                      @if (has(role, p.key)) {
+                        <app-icon name="check" [size]="14" />
+                      }
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<app-modal [(open)]="creating" title="دور جديد" width="520px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="role-form">
+    <label class="field span-full">
+      <span class="field__label">اسم الدور *</span>
+      <input class="input" formControlName="name" placeholder="مثال: مراقب جودة" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">الوصف</span>
+      <input class="input" formControlName="description" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">نسخ الصلاحيات من</span>
+      <select class="select" formControlName="copyFrom">
+        <option value="">بدون (لوحة القيادة فقط)</option>
+        @for (r of roles.sorted(); track r.id) {
+          <option [value]="r.id">{{ r.name }}</option>
+        }
+      </select>
+    </label>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="role-form"><app-icon name="check" [size]="16" /> إنشاء</button>
+  </ng-container>
+</app-modal>

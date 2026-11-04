@@ -1,3 +1,4 @@
+import { HasCustomFields } from './custom-field';
 import { Entity, EntityId, IsoDate } from './common';
 
 export interface Workstation extends Entity {
@@ -39,7 +40,7 @@ export const QC_LABELS: Record<QcStatus, string> = {
 
 export type ProgressMode = 'percent' | 'quantity';
 
-export interface RoutingOperation extends Entity {
+export interface RoutingOperation extends Entity, HasCustomFields {
   readonly nodeId: EntityId;
   readonly sequence: number;
   readonly name: string;

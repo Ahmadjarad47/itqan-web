@@ -9,7 +9,7 @@
     </a>
 
     <nav class="nav" aria-label="القائمة الرئيسية">
-      @for (group of navigation; track group.title) {
+      @for (group of navigation(); track group.title) {
         <div class="nav__group">
           <span class="nav__title">{{ group.title }}</span>
           @for (item of group.items; track item.link) {
@@ -91,7 +91,7 @@
           <app-avatar [name]="session.displayName()" [size]="36" />
           <span class="user__text">
             <strong>{{ session.displayName() }}</strong>
-            <small>{{ session.displayTitle() }}</small>
+            <small>{{ auth.role()?.name ?? session.displayTitle() }}</small>
           </span>
           <app-icon name="chevron-down" [size]="16" />
         </button>
@@ -99,14 +99,13 @@
           <div class="dropdown" animate.enter="dropdown-enter" animate.leave="leave-fade" (click)="$event.stopPropagation()">
             <div class="dropdown__head"><strong>تبديل المستخدم (محاكاة)</strong></div>
             <div class="dropdown__list">
-              <button type="button" class="user-option" [class.active]="session.isManager()" (click)="switchUser(managerId)">
-                <app-avatar name="م. سامر الحلبي" [size]="28" />
-                <span><strong>م. سامر الحلبي</strong><small>مدير الإنتاج — شاشة المدير</small></span>
-              </button>
-              @for (employee of employees.all(); track employee.id) {
+              @for (employee of employees.activeUsers(); track employee.id) {
                 <button type="button" class="user-option" [class.active]="session.userId() === employee.id" (click)="switchUser(employee.id)">
                   <app-avatar [name]="employee.name" [size]="28" />
                   <span><strong>{{ employee.name }}</strong><small>{{ employee.title }}</small></span>
+                  @if (roles.find(employee.roleId); as role) {
+                    <i class="role-tag" [style.color]="role.color">{{ role.name }}</i>
+                  }
                 </button>
               }
             </div>

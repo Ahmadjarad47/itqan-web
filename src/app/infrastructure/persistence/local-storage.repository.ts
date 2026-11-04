@@ -1,7 +1,7 @@
 import { Entity, EntityId } from '@domain/models';
 import { Repository } from '@domain/ports/repositories';
 
-export const STORAGE_NAMESPACE = 'erp101.v1.';
+export const STORAGE_NAMESPACE = 'erp101.v2.';
 
 /**
  * Browser-storage adapter for the repository port. It simulates a backend for the

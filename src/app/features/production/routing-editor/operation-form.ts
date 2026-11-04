@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { ProjectInsightsQuery } from '@application/queries/project-insights.query';
 import { BomStore } from '@application/state/bom.store';
+import { CustomFieldStore } from '@application/state/custom-field.store';
 import { InventoryStore } from '@application/state/inventory.store';
 import { RoutingStore, WorkstationStore } from '@application/state/routing.store';
 import { ProductionUseCase } from '@application/use-cases/production.use-case';
@@ -16,6 +17,7 @@ import {
 } from '@domain/models';
 import { operationUnitCost } from '@domain/rules';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
+import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import { Icon } from '@shared/ui/icon/icon';
 
 type OpChanges = Partial<Omit<RoutingOperation, 'id' | 'nodeId'>>;
@@ -23,7 +25,7 @@ type OpChanges = Partial<Omit<RoutingOperation, 'id' | 'nodeId'>>;
 /** Full editor of a routing operation; every change is saved immediately. */
 @Component({
   selector: 'app-operation-form',
-  imports: [Icon, MoneyPipe, NumPipe],
+  imports: [Icon, CustomFieldsForm, MoneyPipe, NumPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './operation-form.html',
   styleUrl: './operation-form.scss',
@@ -37,7 +39,12 @@ export class OperationForm {
   protected readonly inventory = inject(InventoryStore);
   protected readonly workstations = inject(WorkstationStore);
 
+  private readonly fieldDefinitions = inject(CustomFieldStore);
+
   readonly operation = input.required<RoutingOperation>();
+  readonly readonly = input(false);
+
+  protected readonly customFields = computed(() => this.fieldDefinitions.activeFor('operation'));
 
   protected readonly unitLabels = UNIT_LABELS;
   protected readonly inputKinds = Object.keys(INPUT_KIND_LABELS) as OperationInputKind[];
@@ -71,6 +78,10 @@ export class OperationForm {
       })),
     } satisfies Record<OperationInputKind, { id: string; label: string }[]>;
   });
+
+  protected setCustomField(change: CustomFieldChange): void {
+    this.routing.setCustomField(this.operation().id, change.fieldId, change.value);
+  }
 
   protected update(changes: OpChanges): void {
     this.routing.update(this.operation().id, changes);

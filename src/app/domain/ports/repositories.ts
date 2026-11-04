@@ -1,5 +1,6 @@
 import {
   BomNode,
+  CustomFieldDefinition,
   Department,
   Employee,
   Entity,
@@ -7,6 +8,7 @@ import {
   Material,
   Project,
   PurchaseRequest,
+  Role,
   RoutingOperation,
   StockMovement,
   Supplier,
@@ -36,3 +38,5 @@ export abstract class OperationRepository extends Repository<RoutingOperation> {
 export abstract class DepartmentRepository extends Repository<Department> {}
 export abstract class EmployeeRepository extends Repository<Employee> {}
 export abstract class TaskRepository extends Repository<WorkTask> {}
+export abstract class RoleRepository extends Repository<Role> {}
+export abstract class CustomFieldRepository extends Repository<CustomFieldDefinition> {}

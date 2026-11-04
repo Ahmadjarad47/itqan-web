@@ -1,0 +1,122 @@
+<app-page-header
+  title="الحقول المخصصة"
+  subtitle="أضف حقولاً ديناميكية لأي كيان دون تعديل البرمجة؛ تظهر تلقائياً في نماذج الإدخال وصفحات التفاصيل"
+  eyebrow="إدارة النظام"
+  icon="layers"
+>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> حقل جديد</button>
+</app-page-header>
+
+<nav class="tabs" role="tablist">
+  @for (e of entities; track e) {
+    <button type="button" role="tab" class="tab" [class.active]="entity() === e" [attr.aria-selected]="entity() === e" (click)="selectEntity(e)">
+      <app-icon [name]="entityInfo[e].icon" [size]="16" />
+      {{ entityInfo[e].label }}
+      <span class="count num">{{ count(e) }}</span>
+    </button>
+  }
+</nav>
+
+<div class="layout">
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title">حقول «{{ entityInfo[entity()].label }}»</h2>
+        <p class="card__subtitle">رتّب الحقول بالأسهم، وفعّل أو عطّل أي حقل دون فقدان بياناته</p>
+      </div>
+    </div>
+    <div class="list">
+      @for (field of fields(); track field.id; let first = $first; let last = $last) {
+        <div class="item" [class.off]="!field.active">
+          <div class="order">
+            <button type="button" aria-label="أعلى" [disabled]="first" (click)="store.move(field.id, -1)"><app-icon name="chevron-down" [size]="14" class="up" /></button>
+            <button type="button" aria-label="أسفل" [disabled]="last" (click)="store.move(field.id, 1)"><app-icon name="chevron-down" [size]="14" /></button>
+          </div>
+          <span class="type"><app-icon [name]="typeInfo[field.type].icon" [size]="16" /></span>
+          <div class="info">
+            <strong>{{ field.label }} @if (field.unit) {<small>({{ field.unit }})</small>}</strong>
+            <span class="meta">
+              <span class="badge">{{ typeInfo[field.type].label }}</span>
+              @if (field.options.length) {
+                <span class="subtle">{{ field.options.join(' · ') }}</span>
+              }
+            </span>
+          </div>
+          <div class="flags">
+            <button type="button" class="flag" [class.on]="field.required" (click)="toggle(field, 'required')">إلزامي</button>
+            @if (supportsList()) {
+              <button type="button" class="flag" [class.on]="field.showInList" (click)="toggle(field, 'showInList')">في الجدول</button>
+            }
+            <button type="button" class="flag" [class.on]="field.active" (click)="toggle(field, 'active')">{{ field.active ? 'مفعّل' : 'معطّل' }}</button>
+          </div>
+          <div class="row">
+            <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تعديل" (click)="openEdit(field)"><app-icon name="edit" [size]="15" /></button>
+            <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="remove(field)"><app-icon name="trash" [size]="15" /></button>
+          </div>
+        </div>
+      } @empty {
+        <app-empty-state icon="layers" title="لا توجد حقول بعد" text="أضف أول حقل مخصص لهذا الكيان.">
+          <button type="button" class="btn btn--primary btn--sm" (click)="openCreate()"><app-icon name="plus" [size]="15" /> حقل جديد</button>
+        </app-empty-state>
+      }
+    </div>
+  </section>
+
+  <aside class="card preview">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title"><app-icon name="eye" [size]="17" /> معاينة حيّة</h2>
+        <p class="card__subtitle">هكذا يظهر النموذج للمستخدمين</p>
+      </div>
+    </div>
+    <div class="card__body">
+      <app-custom-fields-form [fields]="active()" [values]="previewValues()" [showErrors]="false" (changed)="preview($event)" />
+    </div>
+  </aside>
+</div>
+
+<app-modal [(open)]="dialogOpen" [title]="editingId() ? 'تعديل الحقل' : 'حقل جديد'" [subtitle]="entityInfo[entity()].label" width="560px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="field-form">
+    <label class="field span-full">
+      <span class="field__label">اسم الحقل *</span>
+      <input class="input" formControlName="label" placeholder="مثال: رقم الرسم الهندسي" />
+    </label>
+    <div class="field span-full">
+      <span class="field__label">نوع الحقل</span>
+      <div class="types">
+        @for (t of types; track t) {
+          <label class="type-option" [class.active]="form.controls.type.value === t">
+            <input type="radio" formControlName="type" [value]="t" />
+            <app-icon [name]="typeInfo[t].icon" [size]="16" />
+            {{ typeInfo[t].label }}
+          </label>
+        }
+      </div>
+    </div>
+    @if (needsOptions()) {
+      <label class="field span-full">
+        <span class="field__label">الخيارات (خيار في كل سطر) *</span>
+        <textarea class="textarea" formControlName="options"></textarea>
+      </label>
+    }
+    <label class="field">
+      <span class="field__label">نص توضيحي</span>
+      <input class="input" formControlName="placeholder" />
+    </label>
+    <label class="field">
+      <span class="field__label">الوحدة</span>
+      <input class="input" formControlName="unit" placeholder="كغ، مم، ..." />
+    </label>
+    <div class="field span-full checks">
+      <label class="checkbox"><input type="checkbox" formControlName="required" /> حقل إلزامي</label>
+      <label class="checkbox"><input type="checkbox" formControlName="active" /> مفعّل</label>
+      @if (supportsList()) {
+        <label class="checkbox"><input type="checkbox" formControlName="showInList" /> إظهاره كعمود في الجدول</label>
+      }
+    </div>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="dialogOpen.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="field-form"><app-icon name="check" [size]="16" /> حفظ</button>
+  </ng-container>
+</app-modal>

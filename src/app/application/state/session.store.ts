@@ -4,8 +4,7 @@ import { EmployeeStore } from './organization.store';
 
 export type Theme = 'light' | 'dark';
 
-export const MANAGER_ID = 'manager';
-
+const DEFAULT_USER_ID = 'u-admin';
 const THEME_KEY = 'erp101.theme';
 const USER_KEY = 'erp101.user';
 
@@ -25,29 +24,33 @@ function writePreference(key: string, value: string): void {
   }
 }
 
-/** Simulated signed-in user (no backend auth) and UI preferences. */
+/** Simulated signed-in user (no backend authentication) and UI preferences. */
 @Injectable({ providedIn: 'root' })
 export class SessionStore {
   private readonly employees = inject(EmployeeStore);
 
-  readonly userId = signal<EntityId>(readPreference(USER_KEY) ?? MANAGER_ID);
+  private readonly requestedUserId = signal<EntityId>(readPreference(USER_KEY) ?? DEFAULT_USER_ID);
   readonly theme = signal<Theme>((readPreference(THEME_KEY) as Theme | null) ?? 'light');
 
-  readonly isManager = computed(() => this.userId() === MANAGER_ID);
-  readonly employee = computed(() => this.employees.find(this.userId()));
-  readonly displayName = computed(() => this.employee()?.name ?? 'م. سامر الحلبي');
-  readonly displayTitle = computed(() => this.employee()?.title ?? 'مدير الإنتاج والتخطيط');
+  /** Falls back to the first active user when the stored one no longer exists or was disabled. */
+  readonly user = computed(() => {
+    const requested = this.employees.find(this.requestedUserId());
+    return requested?.active ? requested : (this.employees.find(DEFAULT_USER_ID) ?? this.employees.activeUsers()[0]);
+  });
+  readonly userId = computed(() => this.user()?.id ?? '');
+  readonly displayName = computed(() => this.user()?.name ?? '—');
+  readonly displayTitle = computed(() => this.user()?.title ?? '');
 
   constructor() {
     effect(() => {
       document.documentElement.dataset['theme'] = this.theme();
       writePreference(THEME_KEY, this.theme());
     });
-    effect(() => writePreference(USER_KEY, this.userId()));
   }
 
   switchUser(id: EntityId): void {
-    this.userId.set(id);
+    this.requestedUserId.set(id);
+    writePreference(USER_KEY, id);
   }
 
   toggleTheme(): void {

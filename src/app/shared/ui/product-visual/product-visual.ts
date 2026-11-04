@@ -25,14 +25,10 @@ import { Icon } from '../icon/icon';
       display: block;
       position: relative;
       overflow: hidden;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(185, 167, 121, 0.18), transparent 60%),
-        linear-gradient(160deg, var(--forest-50), var(--wheat-100));
+      background: var(--wheat-50);
     }
     :host-context([data-theme='dark']) {
-      background:
-        radial-gradient(circle at 30% 20%, rgba(185, 167, 121, 0.12), transparent 60%),
-        linear-gradient(160deg, #13302b, #0e1f1c);
+      background: #13302b;
     }
     :host::before {
       content: '';
@@ -69,7 +65,7 @@ import { Icon } from '../icon/icon';
       display: grid;
       place-items: center;
       color: var(--accent);
-      background: linear-gradient(145deg, var(--forest-800), var(--forest-950));
+      background: var(--forest-800);
       box-shadow:
         inset 0 0 0 1px rgba(185, 167, 121, 0.4),
         0 10px 24px -10px rgba(0, 38, 35, 0.5);

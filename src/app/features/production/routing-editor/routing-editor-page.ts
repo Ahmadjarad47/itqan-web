@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthorizationService } from '@application/auth/authorization.service';
 import { ProjectInsightsQuery } from '@application/queries/project-insights.query';
 import { BomStore } from '@application/state/bom.store';
 import { InventoryStore } from '@application/state/inventory.store';
 import { ProjectStore } from '@application/state/project.store';
 import { RoutingStore, WorkstationStore } from '@application/state/routing.store';
 import { ProductionUseCase } from '@application/use-cases/production.use-case';
+import { CanDirective } from '@core/auth/can.directive';
 import { ConfirmService } from '@core/feedback/confirm.service';
 import { ToastService } from '@core/feedback/toast.service';
 import { EntityId, RoutingOperation, UNIT_LABELS } from '@domain/models';
@@ -20,7 +22,7 @@ import { OperationForm } from './operation-form';
 
 @Component({
   selector: 'app-routing-editor-page',
-  imports: [RouterLink, Icon, Modal, ProductVisual, ProgressBar, ProgressRing, EmptyState, OperationForm, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [RouterLink, CanDirective, Icon, Modal, ProductVisual, ProgressBar, ProgressRing, EmptyState, OperationForm, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './routing-editor-page.html',
   styleUrl: './routing-editor-page.scss',
@@ -38,6 +40,8 @@ export class RoutingEditorPage {
 
   readonly nodeId = input.required<EntityId>();
 
+  private readonly auth = inject(AuthorizationService);
+  protected readonly canEdit = computed(() => this.auth.can('routing.edit'));
   protected readonly unitLabels = UNIT_LABELS;
   protected readonly today = todayIso();
   protected readonly editingId = signal<EntityId | null>(null);

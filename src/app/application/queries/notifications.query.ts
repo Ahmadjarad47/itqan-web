@@ -1,4 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { AuthorizationService } from '../auth/authorization.service';
 import { etaDelayDays, isStageDone, todayIso } from '@domain/rules';
 import { BomStore } from '../state/bom.store';
 import { InventoryStore } from '../state/inventory.store';
@@ -20,6 +21,7 @@ export interface AppNotification {
 @Injectable({ providedIn: 'root' })
 export class NotificationsQuery {
   private readonly session = inject(SessionStore);
+  private readonly auth = inject(AuthorizationService);
   private readonly tasks = inject(TaskStore);
   private readonly purchases = inject(PurchaseStore);
   private readonly routing = inject(RoutingStore);
@@ -29,8 +31,9 @@ export class NotificationsQuery {
   readonly items = computed<AppNotification[]>(() => {
     const today = todayIso();
 
-    if (!this.session.isManager()) {
-      return this.tasks
+    const own: AppNotification[] = !this.auth.can('tasks.own')
+      ? []
+      : this.tasks
         .forAssignee(this.session.userId())
         .filter((task) => task.status === 'sent' && !task.seenByAssignee)
         .map((task) => ({
@@ -41,9 +44,10 @@ export class NotificationsQuery {
           text: `${this.routing.find(task.operationId)?.name ?? ''} — ${this.bom.find(task.nodeId)?.name ?? ''}`,
           link: '/tasks/mine',
         }));
-    }
 
-    const rejected: AppNotification[] = this.tasks
+    const rejected: AppNotification[] = !this.auth.can('tasks.manage')
+      ? []
+      : this.tasks
       .active()
       .filter((task) => task.status === 'rejected')
       .map((task) => ({
@@ -55,7 +59,10 @@ export class NotificationsQuery {
         link: '/tasks/manage',
       }));
 
-    const delayedPurchases: AppNotification[] = this.purchases
+    const canBuy = this.auth.can('procurement.view');
+    const delayedPurchases: AppNotification[] = !canBuy
+      ? []
+      : this.purchases
       .all()
       .filter((request) => etaDelayDays(request, today) > 0 && !isStageDone(request, 'delivered'))
       .map((request) => ({
@@ -67,7 +74,9 @@ export class NotificationsQuery {
         link: `/procurement/requests/${request.id}`,
       }));
 
-    const qcFailed: AppNotification[] = this.purchases
+    const qcFailed: AppNotification[] = !canBuy
+      ? []
+      : this.purchases
       .all()
       .filter((request) => request.qualityResult === 'failed' && !isStageDone(request, 'warehouseReceipt'))
       .map((request) => ({
@@ -79,7 +88,9 @@ export class NotificationsQuery {
         link: `/procurement/requests/${request.id}`,
       }));
 
-    const lateOps: AppNotification[] = this.routing
+    const lateOps: AppNotification[] = !this.auth.can('production.view')
+      ? []
+      : this.routing
       .all()
       .filter((op) => !op.completed && op.latestFinish < today)
       .map((op) => ({
@@ -91,7 +102,9 @@ export class NotificationsQuery {
         link: `/production/routing/${op.nodeId}`,
       }));
 
-    const lowStock: AppNotification[] = this.inventory.lowStock().map((material) => ({
+    const lowStock: AppNotification[] = !this.auth.can('inventory.view')
+      ? []
+      : this.inventory.lowStock().map((material) => ({
       id: `stock-${material.id}`,
       icon: 'warehouse',
       tone: 'warning',
@@ -100,6 +113,6 @@ export class NotificationsQuery {
       link: '/inventory',
     }));
 
-    return [...rejected, ...qcFailed, ...delayedPurchases, ...lateOps, ...lowStock];
+    return [...own, ...rejected, ...qcFailed, ...delayedPurchases, ...lateOps, ...lowStock];
   });
 }

@@ -1,4 +1,4 @@
-import { BomNode, Material, PurchaseRequest, RoutingOperation, Workstation } from '../models';
+import { BomNode, CustomFieldDefinition, formatCustomValue, Material, missingRequiredFields, PurchaseRequest, RoutingOperation, Workstation } from '../models';
 import { BomTree } from './bom-tree';
 import { rollUpCost } from './cost-rollup';
 import { evaluateMcdm } from './mcdm';
@@ -185,5 +185,36 @@ describe('evaluateMcdm', () => {
     );
     expect(result.find((r) => r.quoteId === 'q1')).toEqual({ quoteId: 'q1', score: 70, rank: 1 });
     expect(result.find((r) => r.quoteId === 'q2')?.rank).toBe(2);
+  });
+});
+
+describe('custom fields', () => {
+  const definition = (extra: Partial<CustomFieldDefinition>): CustomFieldDefinition => ({
+    id: 'f',
+    entity: 'bomNode',
+    label: 'الوزن',
+    type: 'number',
+    required: true,
+    options: [],
+    placeholder: '',
+    unit: 'كغ',
+    order: 1,
+    active: true,
+    showInList: false,
+    ...extra,
+  });
+
+  it('reports only active required fields without a value', () => {
+    const fields = [definition({}), definition({ id: 'g', label: 'معطّل', active: false }), definition({ id: 'h', label: 'اختياري', required: false })];
+    expect(missingRequiredFields(fields, {})).toEqual(['الوزن']);
+    expect(missingRequiredFields(fields, { f: 12 })).toEqual([]);
+    expect(missingRequiredFields([definition({ type: 'multiselect' })], { f: [] })).toEqual(['الوزن']);
+  });
+
+  it('formats values by type', () => {
+    expect(formatCustomValue(definition({}), 12)).toBe('12 كغ');
+    expect(formatCustomValue(definition({ type: 'checkbox', unit: '' }), true)).toBe('نعم');
+    expect(formatCustomValue(definition({ type: 'multiselect', unit: '' }), ['أ', 'ب'])).toBe('أ، ب');
+    expect(formatCustomValue(definition({}), null)).toBe('—');
   });
 });

@@ -1,3 +1,4 @@
+import { HasCustomFields } from './custom-field';
 import { Attachment } from './attachment';
 import { Entity, EntityId, IsoDate, Unit } from './common';
 
@@ -52,7 +53,7 @@ export const PRIORITY_LABELS: Record<PurchasePriority, string> = {
   urgent: 'عاجلة',
 };
 
-export interface PurchaseRequest extends Entity {
+export interface PurchaseRequest extends Entity, HasCustomFields {
   readonly number: string;
   readonly title: string;
   /** Null for standalone purchases that are not linked to any project. */

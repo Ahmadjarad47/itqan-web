@@ -1,12 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { CustomFieldStore } from '@application/state/custom-field.store';
 import { InventoryStore } from '@application/state/inventory.store';
+import { CanDirective } from '@core/auth/can.directive';
 import { ToastService } from '@core/feedback/toast.service';
+import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import {
+  CustomFieldDefinition,
+  CustomFieldValue,
+  CustomFieldValues,
   EntityId,
+  formatCustomValue,
   Material,
   MATERIAL_KIND_LABELS,
   MaterialKind,
+  missingRequiredFields,
   MOVEMENT_LABELS,
   StockMovementType,
   Unit,
@@ -21,7 +29,7 @@ import { StatCard } from '@shared/ui/stat-card/stat-card';
 
 @Component({
   selector: 'app-inventory-page',
-  imports: [ReactiveFormsModule, PageHeader, StatCard, Icon, Modal, EmptyState, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [ReactiveFormsModule, CanDirective, CustomFieldsForm, PageHeader, StatCard, Icon, Modal, EmptyState, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './inventory-page.html',
   styleUrl: './inventory-page.scss',
@@ -31,6 +39,10 @@ export class InventoryPage {
   private readonly fb = inject(NonNullableFormBuilder);
   protected readonly inventory = inject(InventoryStore);
 
+  private readonly fieldDefinitions = inject(CustomFieldStore);
+  protected readonly columns = computed(() => this.fieldDefinitions.listColumns('material'));
+  protected readonly formFields = computed(() => this.fieldDefinitions.activeFor('material'));
+  protected readonly customValues = signal<CustomFieldValues>({});
   protected readonly kindLabels = MATERIAL_KIND_LABELS;
   protected readonly kinds = Object.keys(MATERIAL_KIND_LABELS) as MaterialKind[];
   protected readonly unitLabels = UNIT_LABELS;
@@ -90,6 +102,7 @@ export class InventoryPage {
 
   protected openCreate(): void {
     this.form.reset();
+    this.customValues.set({});
     this.creating.set(true);
   }
 
@@ -98,9 +111,22 @@ export class InventoryPage {
       this.form.markAllAsTouched();
       return;
     }
-    const material = this.inventory.create(this.form.getRawValue());
+    const missing = missingRequiredFields(this.formFields(), this.customValues());
+    if (missing.length) {
+      this.toast.warning('حقول مخصصة إلزامية', missing.join('، '));
+      return;
+    }
+    const material = this.inventory.create({ ...this.form.getRawValue(), customFields: this.customValues() });
     this.creating.set(false);
     this.toast.success('تمت إضافة المادة', material.name);
+  }
+
+  protected setCustomValue(change: CustomFieldChange): void {
+    this.customValues.update((values) => ({ ...values, [change.fieldId]: change.value }));
+  }
+
+  protected format(field: CustomFieldDefinition, value: CustomFieldValue | undefined): string {
+    return formatCustomValue(field, value);
   }
 
   protected openMove(material: Material, type: StockMovementType): void {

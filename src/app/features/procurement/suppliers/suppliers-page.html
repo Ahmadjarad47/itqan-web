@@ -4,7 +4,7 @@
   eyebrow="وحدة الشراء"
   icon="truck"
 >
-  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مورد جديد</button>
+  <button *appCan="'suppliers.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مورد جديد</button>
 </app-page-header>
 
 <section class="card">
@@ -32,6 +32,9 @@
           <th>التقييم</th>
           <th>الاتصال</th>
           <th>المدينة</th>
+          @for (c of columns(); track c.id) {
+            <th>{{ c.label }}</th>
+          }
           <th>التوريدات السابقة</th>
           <th></th>
         </tr>
@@ -63,6 +66,9 @@
               </div>
             </td>
             <td>{{ row.supplier.city }}</td>
+            @for (c of columns(); track c.id) {
+              <td class="muted">{{ format(c, row.supplier.customFields?.[c.id]) }}</td>
+            }
             <td>
               <button type="button" class="history-btn" [disabled]="!row.history.length" (click)="toggle(row.supplier.id)">
                 <span class="num">{{ row.history.length }}</span> مكون
@@ -72,7 +78,7 @@
               </button>
             </td>
             <td>
-              <div class="row">
+              <div class="row" *appCan="'suppliers.manage'">
                 <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تعديل" (click)="openEdit(row.supplier)"><app-icon name="edit" [size]="15" /></button>
                 <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="remove(row.supplier)"><app-icon name="trash" [size]="15" /></button>
               </div>
@@ -80,7 +86,7 @@
           </tr>
           @if (expandedId() === row.supplier.id) {
             <tr class="history" animate.enter="enter-fade">
-              <td colspan="7">
+              <td [attr.colspan]="7 + columns().length">
                 <div class="history__list">
                   @for (h of row.history; track h.id) {
                     <a class="history__item" [routerLink]="['/procurement/requests', h.id]">
@@ -95,7 +101,7 @@
             </tr>
           }
         } @empty {
-          <tr><td colspan="7"><app-empty-state icon="truck" title="لا يوجد موردون مطابقون" /></td></tr>
+          <tr><td [attr.colspan]="7 + columns().length"><app-empty-state icon="truck" title="لا يوجد موردون مطابقون" /></td></tr>
         }
       </tbody>
     </table>
@@ -137,6 +143,10 @@
       <input class="input ltr" type="email" formControlName="email" />
     </label>
   </form>
+  @if (formFields().length) {
+    <h4 class="section-title custom-title">الحقول المخصصة</h4>
+    <app-custom-fields-form [fields]="formFields()" [values]="customValues()" [showErrors]="false" (changed)="setCustomValue($event)" />
+  }
   <ng-container modal-actions>
     <button type="button" class="btn" (click)="dialogOpen.set(false)">إلغاء</button>
     <button type="submit" class="btn btn--primary" form="supplier-form"><app-icon name="check" [size]="16" /> حفظ</button>

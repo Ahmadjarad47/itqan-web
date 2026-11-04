@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, linkedSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ProjectInsightsQuery } from '@application/queries/project-insights.query';
 import { BomStore } from '@application/state/bom.store';
+import { CanDirective } from '@core/auth/can.directive';
 import { ProjectStore } from '@application/state/project.store';
 import { BomNode, DISCIPLINES, EntityId, levelTitle, UNIT_LABELS } from '@domain/models';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
@@ -11,7 +12,7 @@ import { ProductVisual } from '@shared/ui/product-visual/product-visual';
 import { ProgressBar, ProgressRing } from '@shared/ui/progress/progress';
 import { AddComponentDialog } from '../shared/add-component-dialog';
 import { DecisionBadge } from '../shared/decision-badge';
-import { BomTreeRow } from './bom-tree-row';
+import { BomDiagram } from '../bom-diagram/bom-diagram';
 
 const CLICK_DELAY_MS = 230;
 
@@ -19,6 +20,7 @@ const CLICK_DELAY_MS = 230;
   selector: 'app-bom-explorer-page',
   imports: [
     RouterLink,
+    CanDirective,
     Icon,
     ProductVisual,
     ProgressBar,
@@ -26,7 +28,7 @@ const CLICK_DELAY_MS = 230;
     DecisionBadge,
     EmptyState,
     AddComponentDialog,
-    BomTreeRow,
+    BomDiagram,
     MoneyPipe,
     NumPipe,
   ],
@@ -45,7 +47,7 @@ export class BomExplorerPage {
   readonly node = input<EntityId>();
 
   protected readonly unitLabels = UNIT_LABELS;
-  protected readonly view = signal<'cards' | 'tree'>('cards');
+  protected readonly view = signal<'diagram' | 'cards'>('diagram');
   protected readonly adding = signal(false);
   protected readonly filter = signal('');
   private clickTimer: ReturnType<typeof setTimeout> | undefined;
@@ -67,11 +69,6 @@ export class BomExplorerPage {
   protected readonly currentCost = computed(() => this.insights.costByNode().get(this.currentId()));
   protected readonly currentProgress = computed(() => this.insights.progressByNode().get(this.currentId()) ?? 0);
   protected readonly lotSize = computed(() => this.insights.lotSize(this.currentId()));
-
-  /** Outline view: everything expanded down to the current level by default. */
-  protected readonly expanded = linkedSignal<ReadonlySet<EntityId>>(
-    () => new Set([this.currentId(), ...this.bom.tree().children(this.currentId()).map((n) => n.id)]),
-  );
 
   constructor() {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.clickTimer));
@@ -117,18 +114,5 @@ export class BomExplorerPage {
 
   protected openDetail(nodeId: EntityId): void {
     void this.router.navigate(['/projects', this.projectId(), 'items', nodeId]);
-  }
-
-  protected toggle(id: EntityId): void {
-    this.expanded.update((set) => {
-      const next = new Set(set);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  protected expandAll(): void {
-    this.expanded.set(new Set([this.currentId(), ...this.bom.tree().descendants(this.currentId()).map((n) => n.id)]));
   }
 }

@@ -9,4 +9,7 @@ export interface Employee extends Entity {
   readonly name: string;
   readonly title: string;
   readonly departmentId: EntityId;
+  readonly roleId: EntityId;
+  readonly email: string;
+  readonly active: boolean;
 }

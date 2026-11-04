@@ -1,6 +1,7 @@
+import { HasCustomFields } from './custom-field';
 import { Entity } from './common';
 
-export interface Supplier extends Entity {
+export interface Supplier extends Entity, HasCustomFields {
   readonly name: string;
   readonly category: string;
   /** 1 to 5. */

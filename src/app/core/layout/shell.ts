@@ -1,10 +1,13 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NotificationsQuery } from '@application/queries/notifications.query';
 import { EmployeeStore } from '@application/state/organization.store';
-import { MANAGER_ID, SessionStore } from '@application/state/session.store';
+import { AuthorizationService } from '@application/auth/authorization.service';
+import { RoleStore } from '@application/state/role.store';
+import { SessionStore } from '@application/state/session.store';
+import { firstAllowedLink } from '@core/auth/permission.guard';
 import { clearLocalStorageData } from '@infrastructure/persistence/local-storage.repository';
 import { ConfirmService } from '@core/feedback/confirm.service';
 import { FeedbackHost } from '@core/feedback/feedback-host';
@@ -25,10 +28,17 @@ export class Shell {
   protected readonly session = inject(SessionStore);
   protected readonly employees = inject(EmployeeStore);
   protected readonly notifications = inject(NotificationsQuery);
+  protected readonly auth = inject(AuthorizationService);
+  protected readonly roles = inject(RoleStore);
   private readonly confirm = inject(ConfirmService);
+  private readonly router = inject(Router);
 
-  protected readonly navigation = NAVIGATION;
-  protected readonly managerId = MANAGER_ID;
+  /** Only the screens the current role is allowed to open. */
+  protected readonly navigation = computed(() =>
+    NAVIGATION.map((group) => ({ ...group, items: group.items.filter((item) => this.auth.can(item.permission)) })).filter(
+      (group) => group.items.length,
+    ),
+  );
   protected readonly sidebarOpen = signal(false);
   protected readonly menu = signal<'notifications' | 'user' | null>(null);
   protected readonly today = new Intl.DateTimeFormat('ar-SY-u-nu-latn', {
@@ -39,8 +49,7 @@ export class Shell {
   }).format(new Date());
 
   constructor() {
-    inject(Router)
-      .events.pipe(
+    this.router.events.pipe(
         filter((event) => event instanceof NavigationEnd),
         takeUntilDestroyed(),
       )
@@ -62,6 +71,7 @@ export class Shell {
   protected switchUser(id: string): void {
     this.session.switchUser(id);
     this.menu.set(null);
+    void this.router.navigateByUrl(firstAllowedLink(this.auth));
   }
 
   protected async resetData(): Promise<void> {

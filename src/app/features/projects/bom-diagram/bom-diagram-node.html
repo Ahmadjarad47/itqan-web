@@ -1,0 +1,67 @@
+@let item = node();
+
+<div class="branch">
+  <div
+    [class]="'card card--' + (item.decision ?? 'none')"
+    [class.card--root]="root()"
+    [attr.data-node]="item.id"
+    tabindex="0"
+    role="button"
+    [attr.aria-label]="item.name"
+    (click)="opened.emit(item.id)"
+    (keydown.enter)="opened.emit(item.id)"
+  >
+    <div class="card__top">
+      <span class="lvl num">L{{ level() }}</span>
+      <span class="code">{{ item.code }}</span>
+      <span class="spacer"></span>
+      <span class="icon" [title]="discipline()"><app-icon [name]="icon()" [size]="14" /></span>
+    </div>
+    <strong class="card__name">{{ item.name }}</strong>
+    <div class="card__meta">
+      <span class="num">× {{ item.quantity | num }}</span>
+      <span class="decision">
+        @switch (item.decision) {
+          @case ('make') {
+            تصنيع
+          }
+          @case ('buy') {
+            شراء
+          }
+          @default {
+            بلا قرار
+          }
+        }
+      </span>
+      <span class="num cost">{{ cost() | money }}</span>
+    </div>
+    <div class="card__progress" [title]="progress() + '%'">
+      <span [style.width.%]="progress()"></span>
+    </div>
+    @if (children().length) {
+      <button type="button" class="toggle" [attr.aria-expanded]="expanded()" [attr.aria-label]="expanded() ? 'طي الفروع' : 'إظهار الفروع'" (click)="toggle($event)">
+        @if (expanded()) {
+          <span class="toggle__sign">−</span>
+        } @else {
+          <span class="num">+{{ descendants() }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  @if (expanded() && children().length) {
+    <div class="children" animate.enter="children-enter">
+      @for (child of children(); track child.id) {
+        <div class="child">
+          <app-bom-diagram-node
+            [node]="child"
+            [level]="level() + 1"
+            [expandedIds]="expandedIds()"
+            (toggled)="toggled.emit($event)"
+            (opened)="opened.emit($event)"
+          />
+        </div>
+      }
+    </div>
+  }
+</div>

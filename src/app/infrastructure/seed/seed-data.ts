@@ -1,10 +1,12 @@
 import {
   BomNode,
+  CustomFieldDefinition,
   Department,
   Employee,
   Material,
   Project,
   PurchaseRequest,
+  Role,
   RoutingOperation,
   StockMovement,
   Supplier,
@@ -12,6 +14,7 @@ import {
   Workstation,
 } from '@domain/models';
 import { isPurchaseCompleted, todayIso } from '@domain/rules';
+import { CUSTOM_FIELDS, ROLES } from './access.seed';
 import { DEPARTMENTS, EMPLOYEES, MATERIALS, SUPPLIERS, WORKSTATIONS } from './catalog.seed';
 import { seedOperations } from './production.seed';
 import { seedProjects } from './projects.seed';
@@ -30,6 +33,8 @@ export interface SeedData {
   readonly departments: Department[];
   readonly employees: Employee[];
   readonly tasks: WorkTask[];
+  readonly roles: Role[];
+  readonly customFields: CustomFieldDefinition[];
 }
 
 let cached: SeedData | null = null;
@@ -69,16 +74,30 @@ export function seedData(): SeedData {
 
   cached = {
     projects,
-    nodes,
+    nodes: nodes.map(withSampleFields),
     materials,
     movements,
-    suppliers: SUPPLIERS,
+    suppliers: SUPPLIERS.map((supplier, i) => ({
+      ...supplier,
+      customFields: { 'cf-tax': String(400100200 + i * 1371), 'cf-terms': ['30 يوم', 'نقداً', '60 يوم'][i % 3] },
+    })),
     purchases,
     workstations: WORKSTATIONS,
     operations: seedOperations(today),
     departments: DEPARTMENTS,
     employees: EMPLOYEES,
     tasks: seedTasks(today),
+    roles: ROLES,
+    customFields: CUSTOM_FIELDS,
   };
   return cached;
+}
+
+const GRADES: Record<string, string> = { 'm-ST37-10': 'ST37', 'm-ST37-3': 'ST37', 'm-SS304-2': 'SS304', 'm-AL6061': 'AL6061', 'm-C45-50': 'C45' };
+
+/** Demo values for the dynamic fields of manufactured parts. */
+function withSampleFields(node: BomNode): BomNode {
+  const grade = node.materials.map((m) => GRADES[m.materialId]).find(Boolean);
+  if (!grade) return node;
+  return { ...node, customFields: { 'cf-grade': grade, 'cf-approved': true, 'cf-finish': grade === 'ST37' ? ['دهان إلكتروستاتيكي'] : [] } };
 }

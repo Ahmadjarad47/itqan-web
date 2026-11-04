@@ -1,5 +1,7 @@
 @let op = operation();
 
+<fieldset class="guard stack-sm" [disabled]="readonly()">
+
 <div class="cost-strip">
   <div><span>العمالة</span><strong class="num">{{ cost().labor | money }}</strong></div>
   <div><span>المستهلكات</span><strong class="num">{{ cost().consumables | money }}</strong></div>
@@ -203,5 +205,12 @@
   </div>
 </div>
 
+@if (customFields().length) {
+  <h3 class="section-title"><app-icon name="layers" [size]="15" /> الحقول المخصصة</h3>
+  <app-custom-fields-form [fields]="customFields()" [values]="op.customFields" (changed)="setCustomField($event)" />
+}
+
 <h3 class="section-title"><app-icon name="clipboard" [size]="15" /> التعليمات الخاصة</h3>
 <textarea class="textarea" [value]="op.instructions" placeholder="ملاحظات خاصة بالعملية..." (change)="update({ instructions: $any($event.target).value })"></textarea>
+
+</fieldset>

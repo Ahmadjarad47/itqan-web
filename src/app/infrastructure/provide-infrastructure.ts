@@ -2,6 +2,7 @@ import { EnvironmentProviders, makeEnvironmentProviders, Provider } from '@angul
 import { Entity } from '@domain/models';
 import {
   BomNodeRepository,
+  CustomFieldRepository,
   DepartmentRepository,
   EmployeeRepository,
   MaterialRepository,
@@ -9,6 +10,7 @@ import {
   ProjectRepository,
   PurchaseRepository,
   Repository,
+  RoleRepository,
   StockMovementRepository,
   SupplierRepository,
   TaskRepository,
@@ -43,5 +45,7 @@ export function provideInfrastructure(): EnvironmentProviders {
     localRepository(DepartmentRepository, 'departments'),
     localRepository(EmployeeRepository, 'employees'),
     localRepository(TaskRepository, 'tasks'),
+    localRepository(RoleRepository, 'roles'),
+    localRepository(CustomFieldRepository, 'customFields'),
   ]);
 }

@@ -1,3 +1,4 @@
+import { HasCustomFields } from './custom-field';
 import { Entity, EntityId, IsoDateTime, Unit } from './common';
 
 export type MaterialKind = 'raw' | 'consumable' | 'purchased';
@@ -8,7 +9,7 @@ export const MATERIAL_KIND_LABELS: Record<MaterialKind, string> = {
   purchased: 'جزء مُشترى',
 };
 
-export interface Material extends Entity {
+export interface Material extends Entity, HasCustomFields {
   readonly code: string;
   readonly name: string;
   readonly kind: MaterialKind;

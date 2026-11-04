@@ -8,18 +8,37 @@ export const DEPARTMENTS: Department[] = [
   { id: 'd-assembly', name: 'قسم التجميع', icon: 'wrench' },
   { id: 'd-electrical', name: 'قسم الكهرباء والأتمتة', icon: 'cpu' },
   { id: 'd-quality', name: 'قسم مراقبة الجودة', icon: 'shield' },
+  { id: 'd-management', name: 'الإدارة العامة', icon: 'building' },
+  { id: 'd-planning', name: 'قسم التخطيط والهندسة', icon: 'tree' },
+  { id: 'd-procurement', name: 'قسم المشتريات', icon: 'cart' },
+  { id: 'd-warehouse', name: 'قسم المستودعات', icon: 'warehouse' },
 ];
 
+const employee = (id: string, name: string, title: string, departmentId: string, roleId: string): Employee => ({
+  id,
+  name,
+  title,
+  departmentId,
+  roleId,
+  email: `${id}@factory.example`,
+  active: true,
+});
+
 export const EMPLOYEES: Employee[] = [
-  { id: 'e-1', name: 'أحمد الخطيب', title: 'فني قص ليزر', departmentId: 'd-laser' },
-  { id: 'e-2', name: 'محمد العلي', title: 'فني ثني وتشكيل', departmentId: 'd-bending' },
-  { id: 'e-3', name: 'خالد الشامي', title: 'لحّام MIG', departmentId: 'd-welding' },
-  { id: 'e-4', name: 'يوسف دياب', title: 'لحّام TIG', departmentId: 'd-welding' },
-  { id: 'e-5', name: 'رامي حداد', title: 'مشغل CNC', departmentId: 'd-machining' },
-  { id: 'e-6', name: 'عمر السيد', title: 'فني تجميع', departmentId: 'd-assembly' },
-  { id: 'e-7', name: 'لؤي منصور', title: 'فني كهرباء', departmentId: 'd-electrical' },
-  { id: 'e-8', name: 'رنا الأحمد', title: 'مهندسة جودة', departmentId: 'd-quality' },
-  { id: 'e-9', name: 'هبة النجار', title: 'مهندسة أتمتة', departmentId: 'd-electrical' },
+  employee('u-admin', 'م. نادر العبدالله', 'مدير النظام', 'd-management', 'r-admin'),
+  employee('u-pm', 'م. سامر الحلبي', 'مدير الإنتاج والتخطيط', 'd-management', 'r-production-manager'),
+  employee('u-eng', 'م. ريم الصباغ', 'مهندسة تخطيط', 'd-planning', 'r-planner'),
+  employee('u-buyer', 'ليث المصري', 'مسؤول المشتريات', 'd-procurement', 'r-buyer'),
+  employee('u-store', 'جمال قدور', 'أمين المستودع', 'd-warehouse', 'r-storekeeper'),
+  employee('e-1', 'أحمد الخطيب', 'فني قص ليزر', 'd-laser', 'r-operator'),
+  employee('e-2', 'محمد العلي', 'فني ثني وتشكيل', 'd-bending', 'r-operator'),
+  employee('e-3', 'خالد الشامي', 'لحّام MIG', 'd-welding', 'r-operator'),
+  employee('e-4', 'يوسف دياب', 'لحّام TIG', 'd-welding', 'r-operator'),
+  employee('e-5', 'رامي حداد', 'مشغل CNC', 'd-machining', 'r-operator'),
+  employee('e-6', 'عمر السيد', 'فني تجميع', 'd-assembly', 'r-operator'),
+  employee('e-7', 'لؤي منصور', 'فني كهرباء', 'd-electrical', 'r-operator'),
+  employee('e-8', 'رنا الأحمد', 'مهندسة جودة', 'd-quality', 'r-operator'),
+  employee('e-9', 'هبة النجار', 'مهندسة أتمتة', 'd-electrical', 'r-operator'),
 ];
 
 export const WORKSTATIONS: Workstation[] = [

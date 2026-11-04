@@ -1,4 +1,4 @@
-@if (session.employee(); as me) {
+@if (session.user(); as me) {
   <app-page-header
     [title]="'مهامي — ' + me.name"
     [subtitle]="me.title + ' · لوحة المهام الشخصية'"

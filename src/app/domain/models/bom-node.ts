@@ -1,3 +1,4 @@
+import { HasCustomFields } from './custom-field';
 import { Attachment } from './attachment';
 import { Entity, EntityId, IsoDate, Unit } from './common';
 import { Discipline } from './discipline';
@@ -19,7 +20,7 @@ export interface MaterialAssignment {
  * A node in the recursive product tree (parent-child). The level is derived from
  * the depth of the node, so the tree supports an unlimited number of levels.
  */
-export interface BomNode extends Entity {
+export interface BomNode extends Entity, HasCustomFields {
   readonly projectId: EntityId;
   readonly parentId: EntityId | null;
   readonly code: string;

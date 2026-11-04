@@ -4,7 +4,7 @@
   eyebrow="المخزون"
   icon="warehouse"
 >
-  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مادة جديدة</button>
+  <button *appCan="'inventory.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مادة جديدة</button>
 </app-page-header>
 
 @let t = totals();
@@ -45,6 +45,9 @@
             <th>المادة</th>
             <th>النوع</th>
             <th>المستودع</th>
+            @for (c of columns(); track c.id) {
+              <th>{{ c.label }}</th>
+            }
             <th>الرصيد</th>
             <th>سعر الوحدة</th>
             <th>القيمة</th>
@@ -66,6 +69,9 @@
                 </span>
               </td>
               <td class="muted">{{ row.material.warehouse }}</td>
+              @for (c of columns(); track c.id) {
+                <td class="muted">{{ format(c, row.material.customFields?.[c.id]) }}</td>
+              }
               <td>
                 <div class="stock">
                   <span class="num" [class.low]="row.low"><strong>{{ row.material.stock | num }}</strong> {{ unitLabels[row.material.unit] }}</span>
@@ -78,14 +84,14 @@
               <td class="num">{{ row.material.unitCost | money }}</td>
               <td class="num"><strong>{{ row.value | money }}</strong></td>
               <td>
-                <div class="row">
+                <div class="row" *appCan="'inventory.manage'">
                   <button type="button" class="btn btn--sm" (click)="openMove(row.material, 'receipt')"><app-icon name="download" [size]="14" /> استلام</button>
                   <button type="button" class="btn btn--sm btn--ghost" (click)="openMove(row.material, 'issue')"><app-icon name="upload" [size]="14" /> صرف</button>
                 </div>
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7"><app-empty-state icon="warehouse" title="لا توجد مواد مطابقة" /></td></tr>
+            <tr><td [attr.colspan]="7 + columns().length"><app-empty-state icon="warehouse" title="لا توجد مواد مطابقة" /></td></tr>
           }
         </tbody>
       </table>
@@ -167,6 +173,10 @@
       <input class="input" formControlName="warehouse" />
     </label>
   </form>
+  @if (formFields().length) {
+    <h4 class="section-title custom-title">الحقول المخصصة</h4>
+    <app-custom-fields-form [fields]="formFields()" [values]="customValues()" [showErrors]="false" (changed)="setCustomValue($event)" />
+  }
   <ng-container modal-actions>
     <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
     <button type="submit" class="btn btn--primary" form="material-form"><app-icon name="check" [size]="16" /> حفظ</button>

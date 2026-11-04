@@ -1,15 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AuthorizationService } from '@application/auth/authorization.service';
 import { BomStore } from '@application/state/bom.store';
+import { CustomFieldStore } from '@application/state/custom-field.store';
 import { ProjectStore } from '@application/state/project.store';
 import { PurchaseStore } from '@application/state/purchase.store';
 import { SupplierStore } from '@application/state/supplier.store';
 import { PurchaseWorkflowUseCase } from '@application/use-cases/purchase-workflow.use-case';
+import { CanDirective } from '@core/auth/can.directive';
 import { ConfirmService } from '@core/feedback/confirm.service';
 import { ToastService } from '@core/feedback/toast.service';
 import {
   Attachment,
   EntityId,
+  missingRequiredFields,
   PRIORITY_LABELS,
   PurchasePriority,
   PurchaseStageKey,
@@ -26,6 +30,7 @@ import {
   todayIso,
 } from '@domain/rules';
 import { ArDatePipe, MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
+import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { AttachmentList } from '@shared/ui/file-drop/attachment-list';
 import { FileDrop, RejectedFile } from '@shared/ui/file-drop/file-drop';
@@ -36,7 +41,7 @@ import { QuotesPanel } from './quotes-panel';
 
 @Component({
   selector: 'app-purchase-detail-page',
-  imports: [RouterLink, Icon, ProgressRing, FileDrop, AttachmentList, EmptyState, QuotesPanel, McdmPanel, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [RouterLink, CanDirective, CustomFieldsForm, Icon, ProgressRing, FileDrop, AttachmentList, EmptyState, QuotesPanel, McdmPanel, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './purchase-detail-page.html',
   styleUrl: './purchase-detail-page.scss',
@@ -59,7 +64,12 @@ export class PurchaseDetailPage {
   protected readonly unitLabels = UNIT_LABELS;
   protected readonly today = todayIso();
 
+  private readonly auth = inject(AuthorizationService);
+  private readonly fieldDefinitions = inject(CustomFieldStore);
+  protected readonly canManage = computed(() => this.auth.can('procurement.manage'));
+  protected readonly customFields = computed(() => this.fieldDefinitions.activeFor('purchase'));
   protected readonly request = computed(() => this.purchases.find(this.requestId()));
+  protected readonly missing = computed(() => missingRequiredFields(this.customFields(), this.request()?.customFields));
   protected readonly node = computed(() => this.bom.find(this.request()?.nodeId));
   protected readonly project = computed(() => this.projects.find(this.request()?.projectId));
   protected readonly supplier = computed(() => this.suppliers.find(this.request()?.supplierId));
@@ -91,6 +101,10 @@ export class PurchaseDetailPage {
     if (key === 'warehouseReceipt' && !wasDone) {
       this.toast.success('تم الاستلام في المستودع', 'فُتح سجل المخزون وحُدّث سعر الشراء في شجرة المنتج');
     }
+  }
+
+  protected setCustomField(change: CustomFieldChange): void {
+    this.purchases.setCustomField(this.requestId(), change.fieldId, change.value);
   }
 
   protected setStageDate(key: PurchaseStageKey, date: string): void {

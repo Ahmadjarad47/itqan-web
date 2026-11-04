@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AuthorizationService } from '@application/auth/authorization.service';
 import { ProjectInsightsQuery } from '@application/queries/project-insights.query';
+import { CustomFieldStore } from '@application/state/custom-field.store';
 import { BomStore } from '@application/state/bom.store';
 import { InventoryStore } from '@application/state/inventory.store';
 import { ProjectStore } from '@application/state/project.store';
@@ -8,6 +10,7 @@ import { PurchaseStore } from '@application/state/purchase.store';
 import { RoutingStore } from '@application/state/routing.store';
 import { ProjectSetupUseCase } from '@application/use-cases/project-setup.use-case';
 import { SourcingUseCase } from '@application/use-cases/sourcing.use-case';
+import { CanDirective } from '@core/auth/can.directive';
 import { ConfirmService } from '@core/feedback/confirm.service';
 import { ToastService } from '@core/feedback/toast.service';
 import {
@@ -20,12 +23,14 @@ import {
   DISCIPLINE_KEYS,
   EntityId,
   levelTitle,
+  missingRequiredFields,
   SourcingDecision,
   Unit,
   UNIT_LABELS,
 } from '@domain/models';
 import { purchaseProgress, purchaseStatusLabel } from '@domain/rules';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
+import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { AttachmentList } from '@shared/ui/file-drop/attachment-list';
 import { FileDrop, RejectedFile } from '@shared/ui/file-drop/file-drop';
@@ -55,6 +60,8 @@ const FILE_SECTIONS: readonly { kind: AttachmentKind; icon: string; hint: string
     AttachmentList,
     EmptyState,
     AddComponentDialog,
+    CustomFieldsForm,
+    CanDirective,
     MoneyPipe,
     NumPipe,
   ],
@@ -72,6 +79,8 @@ export class ItemDetailPage {
   private readonly setup = inject(ProjectSetupUseCase);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly auth = inject(AuthorizationService);
+  private readonly fieldDefinitions = inject(CustomFieldStore);
   protected readonly inventory = inject(InventoryStore);
   protected readonly insights = inject(ProjectInsightsQuery);
 
@@ -87,7 +96,11 @@ export class ItemDetailPage {
   protected readonly newMaterialId = signal('');
   protected readonly newMaterialQty = signal(1);
 
+  protected readonly canEdit = computed(() => this.auth.can('bom.edit'));
+  protected readonly canDecide = computed(() => this.auth.can('bom.decide'));
+  protected readonly customFields = computed(() => this.fieldDefinitions.activeFor('bomNode'));
   protected readonly node = computed(() => this.bom.find(this.nodeId()));
+  protected readonly missing = computed(() => missingRequiredFields(this.customFields(), this.node()?.customFields));
   protected readonly project = computed(() => this.projects.find(this.projectId()));
   protected readonly path = computed(() => this.bom.tree().path(this.nodeId()));
   protected readonly level = computed(() => Math.max(0, this.path().length - 1));
@@ -121,6 +134,10 @@ export class ItemDetailPage {
 
   protected update(changes: Partial<Omit<BomNode, 'id' | 'projectId' | 'parentId'>>): void {
     this.bom.update(this.nodeId(), changes);
+  }
+
+  protected setCustomField(change: CustomFieldChange): void {
+    this.bom.setCustomField(this.nodeId(), change.fieldId, change.value);
   }
 
   protected updateCode(code: string): void {

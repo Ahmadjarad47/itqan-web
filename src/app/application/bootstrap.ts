@@ -1,9 +1,11 @@
 import { inject } from '@angular/core';
 import { BomStore } from './state/bom.store';
+import { CustomFieldStore } from './state/custom-field.store';
 import { InventoryStore } from './state/inventory.store';
 import { DepartmentStore, EmployeeStore } from './state/organization.store';
 import { ProjectStore } from './state/project.store';
 import { PurchaseStore } from './state/purchase.store';
+import { RoleStore } from './state/role.store';
 import { RoutingStore, WorkstationStore } from './state/routing.store';
 import { SupplierStore } from './state/supplier.store';
 import { TaskStore } from './state/task.store';
@@ -21,6 +23,8 @@ export function loadApplicationState(): Promise<void> {
     inject(DepartmentStore),
     inject(EmployeeStore),
     inject(TaskStore),
+    inject(RoleStore),
+    inject(CustomFieldStore),
   ];
   return Promise.all(stores.map((store) => store.load())).then(() => undefined);
 }

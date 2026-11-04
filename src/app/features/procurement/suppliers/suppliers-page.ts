@@ -2,12 +2,24 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BomStore } from '@application/state/bom.store';
+import { CustomFieldStore } from '@application/state/custom-field.store';
 import { ProjectStore } from '@application/state/project.store';
 import { PurchaseStore } from '@application/state/purchase.store';
 import { SupplierStore } from '@application/state/supplier.store';
 import { ConfirmService } from '@core/feedback/confirm.service';
+import { CanDirective } from '@core/auth/can.directive';
 import { ToastService } from '@core/feedback/toast.service';
-import { EntityId, Supplier, SUPPLIER_CATEGORIES } from '@domain/models';
+import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
+import {
+  CustomFieldDefinition,
+  CustomFieldValue,
+  CustomFieldValues,
+  EntityId,
+  formatCustomValue,
+  missingRequiredFields,
+  Supplier,
+  SUPPLIER_CATEGORIES,
+} from '@domain/models';
 import { isStageDone } from '@domain/rules';
 import { Avatar } from '@shared/ui/avatar/avatar';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -17,7 +29,7 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
 
 @Component({
   selector: 'app-suppliers-page',
-  imports: [ReactiveFormsModule, RouterLink, PageHeader, Icon, Modal, Avatar, EmptyState],
+  imports: [ReactiveFormsModule, RouterLink, CanDirective, CustomFieldsForm, PageHeader, Icon, Modal, Avatar, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './suppliers-page.html',
   styleUrl: './suppliers-page.scss',
@@ -31,6 +43,10 @@ export class SuppliersPage {
   private readonly confirm = inject(ConfirmService);
   private readonly fb = inject(NonNullableFormBuilder);
 
+  private readonly fieldDefinitions = inject(CustomFieldStore);
+  protected readonly columns = computed(() => this.fieldDefinitions.listColumns('supplier'));
+  protected readonly formFields = computed(() => this.fieldDefinitions.activeFor('supplier'));
+  protected readonly customValues = signal<CustomFieldValues>({});
   protected readonly categories = SUPPLIER_CATEGORIES;
   protected readonly stars = [1, 2, 3, 4, 5];
   protected readonly search = signal('');
@@ -80,13 +96,15 @@ export class SuppliersPage {
   protected openCreate(): void {
     this.editingId.set(null);
     this.form.reset();
+    this.customValues.set({});
     this.dialogOpen.set(true);
   }
 
   protected openEdit(supplier: Supplier): void {
     this.editingId.set(supplier.id);
-    const { id: _id, ...values } = supplier;
+    const { id: _id, customFields, ...values } = supplier;
     this.form.setValue(values);
+    this.customValues.set(customFields ?? {});
     this.dialogOpen.set(true);
   }
 
@@ -95,7 +113,12 @@ export class SuppliersPage {
       this.form.markAllAsTouched();
       return;
     }
-    const value = this.form.getRawValue();
+    const missing = missingRequiredFields(this.formFields(), this.customValues());
+    if (missing.length) {
+      this.toast.warning('حقول مخصصة إلزامية', missing.join('، '));
+      return;
+    }
+    const value = { ...this.form.getRawValue(), customFields: this.customValues() };
     const id = this.editingId();
     if (id) {
       this.store.update(id, value);
@@ -117,6 +140,14 @@ export class SuppliersPage {
     if (!accepted) return;
     this.store.remove(supplier.id);
     this.toast.info('تم حذف المورد');
+  }
+
+  protected setCustomValue(change: CustomFieldChange): void {
+    this.customValues.update((values) => ({ ...values, [change.fieldId]: change.value }));
+  }
+
+  protected format(field: CustomFieldDefinition, value: CustomFieldValue | undefined): string {
+    return formatCustomValue(field, value);
   }
 
   protected toggle(id: EntityId): void {

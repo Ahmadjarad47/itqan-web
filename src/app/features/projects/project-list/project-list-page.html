@@ -4,7 +4,7 @@
   eyebrow="نمذجة شجرة المنتج المرئية — Visual BOM"
   icon="tree"
 >
-  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مشروع جديد</button>
+  <button *appCan="'projects.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مشروع جديد</button>
 </app-page-header>
 
 <div class="grid-cards">
@@ -37,7 +37,7 @@
 
         <app-progress-bar [value]="card.progress" [height]="7" />
 
-        <div class="qty" (click)="$event.stopPropagation()">
+        <fieldset class="guard qty" [disabled]="!canManage()" (click)="$event.stopPropagation()">
           <label [for]="'qty-' + card.project.id">عدد الوحدات المراد إنتاجها</label>
           <div class="stepper">
             <button type="button" aria-label="إنقاص" (click)="step($event, card.project.id, card.project.productionQuantity, -1)">−</button>
@@ -51,7 +51,7 @@
             />
             <button type="button" aria-label="زيادة" (click)="step($event, card.project.id, card.project.productionQuantity, 1)">+</button>
           </div>
-        </div>
+        </fieldset>
 
         <div class="cost">
           <div>

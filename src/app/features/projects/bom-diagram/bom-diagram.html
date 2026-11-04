@@ -1,0 +1,48 @@
+<div class="toolbar-bar">
+  <div class="group">
+    <span class="subtle">إظهار حتى</span>
+    <div class="segmented">
+      @for (d of depthPresets(); track d) {
+        <button type="button" (click)="showDepth(d)">المستوى {{ level() + d }}</button>
+      }
+      <button type="button" (click)="expandAll()">الكل</button>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i class="sw sw--make"></i>تصنيع</span>
+    <span><i class="sw sw--buy"></i>شراء</span>
+    <span><i class="sw sw--none"></i>بلا قرار</span>
+  </div>
+  <div class="group zoom">
+    <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تصغير" (click)="setZoom(zoom() - 0.1)"><app-icon name="zoom-out" [size]="16" /></button>
+    <button type="button" class="zoom__value num" (click)="setZoom(1)" title="إعادة الضبط">{{ zoomPercent() }}%</button>
+    <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تكبير" (click)="setZoom(zoom() + 0.1)"><app-icon name="zoom-in" [size]="16" /></button>
+  </div>
+</div>
+
+<div
+  #viewport
+  class="viewport"
+  [class.dragging]="dragging()"
+  (pointerdown)="startDrag($event)"
+  (pointermove)="moveDrag($event)"
+  (pointerup)="endDrag()"
+  (pointercancel)="endDrag()"
+  (wheel)="onWheel($event)"
+>
+  <div class="canvas" [style.zoom]="zoom()">
+    @if (root(); as node) {
+      <app-bom-diagram-node
+        [node]="node"
+        [level]="level()"
+        [root]="true"
+        [expandedIds]="expanded()"
+        (toggled)="toggle($event)"
+        (opened)="opened.emit($event)"
+      />
+    }
+  </div>
+</div>
+<p class="hint subtle">
+  <app-icon name="eye" [size]="13" /> انقر على أي عقدة لفتح تفاصيلها · زر الدائرة أسفل العقدة لإظهار أو طي فروعها · اسحب الخلفية للتنقل · Ctrl + عجلة الفأرة للتكبير
+</p>

@@ -12,10 +12,10 @@
   </nav>
 
   <header class="hero enter-fade-up">
-    <label class="hero__visual" title="تغيير صورة المكون">
+    <label class="hero__visual" [class.locked]="!canEdit()" title="تغيير صورة المكون">
       <app-product-visual [image]="item.image" [name]="item.name" [code]="item.code" [discipline]="item.discipline" [iconSize]="42" />
       <span class="hero__upload"><app-icon name="image" [size]="15" /> تغيير الصورة</span>
-      <input type="file" accept="image/*" (change)="onImage($event)" />
+      <input type="file" accept="image/*" [disabled]="!canEdit()" (change)="onImage($event)" />
     </label>
     <div class="hero__info">
       <div class="row wrap">
@@ -27,9 +27,12 @@
       <p class="muted">{{ project()?.name }} · {{ project()?.customer }}</p>
       <div class="row wrap">
         <button type="button" class="btn btn--sm" (click)="backToTree()"><app-icon name="tree" [size]="15" /> العودة إلى الشجرة</button>
-        <button type="button" class="btn btn--sm" (click)="adding.set(true)"><app-icon name="plus" [size]="15" /> إضافة مكون فرعي</button>
+        <button *appCan="'bom.edit'" type="button" class="btn btn--sm" (click)="adding.set(true)"><app-icon name="plus" [size]="15" /> إضافة مكون فرعي</button>
         @if (item.parentId) {
-          <button type="button" class="btn btn--sm btn--danger" (click)="remove()"><app-icon name="trash" [size]="15" /> حذف المكون</button>
+          <button *appCan="'bom.edit'" type="button" class="btn btn--sm btn--danger" (click)="remove()"><app-icon name="trash" [size]="15" /> حذف المكون</button>
+        }
+        @if (!canEdit()) {
+          <span class="readonly-note"><app-icon name="eye" [size]="13" /> عرض فقط حسب صلاحياتك</span>
         }
       </div>
     </div>
@@ -41,6 +44,7 @@
 
   <div class="layout">
     <div class="stack">
+      <fieldset class="guard stack" [disabled]="!canEdit()">
       <!-- B1 -->
       <section class="card">
         <div class="card__header">
@@ -90,6 +94,24 @@
           </label>
         </div>
       </section>
+
+      <!-- Custom fields -->
+      @if (customFields().length) {
+        <section class="card">
+          <div class="card__header">
+            <div>
+              <h2 class="card__title"><app-icon name="layers" [size]="18" /> الحقول المخصصة</h2>
+              <p class="card__subtitle">حقول ديناميكية يعرّفها مدير النظام من «إدارة النظام ← الحقول المخصصة»</p>
+            </div>
+            @if (missing().length) {
+              <span class="badge badge--warning">{{ missing().length }} حقول إلزامية ناقصة</span>
+            }
+          </div>
+          <div class="card__body">
+            <app-custom-fields-form [fields]="customFields()" [values]="item.customFields" (changed)="setCustomField($event)" />
+          </div>
+        </section>
+      }
 
       <!-- Files -->
       <section class="card">
@@ -193,7 +215,10 @@
         </div>
       </section>
 
+      </fieldset>
+
       <!-- B3 -->
+      <fieldset class="guard" [disabled]="!canDecide()">
       <section class="card decision" [class.decision--missing]="!item.decision">
         <div class="card__header">
           <div>
@@ -269,6 +294,7 @@
           }
         </div>
       </section>
+      </fieldset>
     </div>
 
     <aside class="stack side">

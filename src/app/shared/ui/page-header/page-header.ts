@@ -43,7 +43,7 @@ import { Icon } from '../icon/icon';
       display: grid;
       place-items: center;
       color: var(--accent);
-      background: linear-gradient(145deg, var(--forest-800), var(--forest-950));
+      background: var(--forest-800);
       box-shadow: inset 0 0 0 1px rgba(185, 167, 121, 0.35), var(--shadow);
     }
     .head__eyebrow {

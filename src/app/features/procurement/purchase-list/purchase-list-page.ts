@@ -5,6 +5,7 @@ import { BomStore } from '@application/state/bom.store';
 import { ProjectStore } from '@application/state/project.store';
 import { PurchaseStore } from '@application/state/purchase.store';
 import { SupplierStore } from '@application/state/supplier.store';
+import { CanDirective } from '@core/auth/can.directive';
 import { ToastService } from '@core/feedback/toast.service';
 import { PRIORITY_LABELS, PurchasePriority, PurchaseRequest, Unit, UNIT_LABELS } from '@domain/models';
 import {
@@ -38,7 +39,7 @@ const SEGMENTS: { key: Segment; label: string; test: (r: PurchaseRequest, today:
 
 @Component({
   selector: 'app-purchase-list-page',
-  imports: [ReactiveFormsModule, RouterLink, PageHeader, StatCard, Icon, Modal, EmptyState, ProgressBar, StageDots, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [ReactiveFormsModule, RouterLink, CanDirective, PageHeader, StatCard, Icon, Modal, EmptyState, ProgressBar, StageDots, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './purchase-list-page.html',
   styleUrl: './purchase-list-page.scss',

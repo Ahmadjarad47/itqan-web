@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AuthorizationService } from '@application/auth/authorization.service';
 import { ProjectInsightsQuery } from '@application/queries/project-insights.query';
 import { BomStore } from '@application/state/bom.store';
 import { InventoryStore } from '@application/state/inventory.store';
@@ -37,6 +38,8 @@ export class CostingPage {
   /** Selected project from the `project` query parameter. */
   readonly project = input<EntityId>();
 
+  private readonly auth = inject(AuthorizationService);
+  protected readonly canSimulate = computed(() => this.auth.can('costing.simulate'));
   protected readonly unitLabels = UNIT_LABELS;
   protected readonly selectedId = computed(() => this.project() ?? this.projects.sorted()[0]?.id ?? '');
   protected readonly selected = computed(() => this.projects.find(this.selectedId()));

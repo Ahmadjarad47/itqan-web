@@ -278,23 +278,3 @@
   }
 }
 
-.tree {
-  overflow-x: auto;
-
-  &__head {
-    display: grid;
-    grid-template-columns: 28px 34px 26px auto minmax(140px, 1fr) 70px 110px 120px 150px;
-    gap: 10px;
-    padding: 10px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-
-    @media (max-width: 1100px) {
-      display: none;
-    }
-  }
-}
