@@ -1,0 +1,101 @@
+<app-page-header
+  title="مخطط جانت للعمليات"
+  subtitle="الخط الزمني لعمليات المكونات، قابل للتصفية حسب المشروع والمستوى والمكون"
+  eyebrow="Gantt Chart"
+  icon="gantt"
+>
+  <a class="btn" routerLink="/production/pool"><app-icon name="factory" [size]="17" /> حوض التصنيع</a>
+</app-page-header>
+
+<section class="card">
+  <div class="filters">
+    <select class="select input--sm" (change)="setProject($any($event.target).value)">
+      <option value="">كل المشاريع</option>
+      @for (p of projects.sorted(); track p.id) {
+        <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+      }
+    </select>
+    <select class="select input--sm" (change)="levelFilter.set($any($event.target).value)">
+      <option value="all">كل المستويات</option>
+      <option value="0">المستوى 0 — المنتج النهائي</option>
+      <option value="1">المستوى 1 — المكونات الرئيسية</option>
+      <option value="2">المستوى 2 — المكونات الفرعية</option>
+      <option value="3">المستوى 3 فما دون</option>
+    </select>
+    <select class="select input--sm" [value]="componentFilter()" (change)="componentFilter.set($any($event.target).value)">
+      <option value="">كل المكونات</option>
+      @for (n of componentOptions(); track n.id) {
+        <option [value]="n.id">{{ n.code }} — {{ n.name }}</option>
+      }
+    </select>
+    <label class="checkbox"><input type="checkbox" [checked]="hideCompleted()" (change)="hideCompleted.set($any($event.target).checked)" /> إخفاء المنجزة</label>
+    <span class="spacer"></span>
+    <div class="legend">
+      @for (l of legend; track l.state) {
+        <span><i [class]="'swatch bar--' + l.state"></i>{{ l.label }}</span>
+      }
+    </div>
+    <div class="zoom">
+      <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تصغير" (click)="zoom(-6)"><app-icon name="zoom-out" [size]="16" /></button>
+      <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تكبير" (click)="zoom(6)"><app-icon name="zoom-in" [size]="16" /></button>
+    </div>
+  </div>
+
+  @if (groups().length) {
+    <div class="gantt" [style.--day]="dayWidth() + 'px'" [style.--days]="days().length" [style.--today]="todayOffset()">
+      <div class="g-row g-head">
+        <div class="g-label g-label--head">المكون / العملية</div>
+        <div class="g-track">
+          <div class="months">
+            @for (m of months(); track m.label) {
+              <span [style.width.px]="m.span * dayWidth()">{{ m.label }}</span>
+            }
+          </div>
+          <div class="days">
+            @for (d of days(); track d.iso) {
+              <span [class.weekend]="d.weekend" [class.today]="d.today" class="num">{{ d.day }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      @for (group of groups(); track group.node.id) {
+        <div class="g-row g-group" (click)="open(group.node.id)">
+          <div class="g-label">
+            <span class="lvl num">L{{ group.level }}</span>
+            <span class="g-name">
+              <strong>{{ group.node.name }}</strong>
+              <small class="ltr">{{ group.node.code }}</small>
+            </span>
+          </div>
+          <div class="g-track">
+            <div class="grid-bg"></div>
+            <span class="summary" [style.inset-inline-start.px]="group.offset * dayWidth()" [style.width.px]="group.span * dayWidth()"></span>
+          </div>
+        </div>
+        @for (bar of group.bars; track bar.op.id) {
+          <div class="g-row" (click)="open(group.node.id)">
+            <div class="g-label g-label--op">
+              <span class="seq num">{{ bar.op.sequence }}</span>
+              <span class="g-op">{{ bar.op.name }}</span>
+            </div>
+            <div class="g-track">
+              <div class="grid-bg"></div>
+              <span
+                [class]="'bar bar--' + bar.state"
+                [style.inset-inline-start.px]="bar.offset * dayWidth()"
+                [style.width.px]="bar.span * dayWidth() - 4"
+                [title]="bar.label"
+              >
+                <span class="bar__fill" [style.width.%]="bar.progress"></span>
+                <span class="bar__text num">{{ bar.progress }}%</span>
+              </span>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  } @else {
+    <app-empty-state icon="gantt" title="لا توجد عمليات مطابقة" text="غيّر المرشحات أو أضف عمليات إلى جداول المسار." />
+  }
+</section>

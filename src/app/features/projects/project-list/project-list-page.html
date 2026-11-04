@@ -1,0 +1,115 @@
+<app-page-header
+  title="المشاريع وشجرة المنتج"
+  subtitle="اختر المنتج النهائي (المستوى 0) وحدد عدد الوحدات المراد إنتاجها، ثم انقر للتعمق في مكوناته"
+  eyebrow="نمذجة شجرة المنتج المرئية — Visual BOM"
+  icon="tree"
+>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مشروع جديد</button>
+</app-page-header>
+
+<div class="grid-cards">
+  @for (card of cards(); track card.project.id; let i = $index) {
+    <article class="project-card" [style.--i]="i" [routerLink]="['/projects', card.project.id]">
+      <div class="project-card__visual">
+        <app-product-visual
+          [image]="card.root?.image ?? null"
+          [name]="card.project.name"
+          [code]="card.project.code"
+          [discipline]="card.root?.discipline ?? 'mechanical'"
+          [iconSize]="44"
+        />
+        <span class="level-tag">LEVEL 0 · المنتج النهائي</span>
+        <span class="badge status" [class.badge--success]="card.project.status === 'active'" [class.badge--accent]="card.project.status === 'planning'">
+          {{ statusLabels[card.project.status] }}
+        </span>
+      </div>
+
+      <div class="project-card__body">
+        <span class="code">{{ card.project.code }}</span>
+        <h2>{{ card.project.name }}</h2>
+        <p class="muted">{{ card.project.customer }}</p>
+
+        <div class="facts">
+          <div><span>المستويات</span><strong class="num">{{ card.levels }}</strong></div>
+          <div><span>مكونات رئيسية</span><strong class="num">{{ card.mainComponents }}</strong></div>
+          <div><span>التسليم</span><strong>{{ card.project.dueDate | arDate: 'short' }}</strong></div>
+        </div>
+
+        <app-progress-bar [value]="card.progress" [height]="7" />
+
+        <div class="qty" (click)="$event.stopPropagation()">
+          <label [for]="'qty-' + card.project.id">عدد الوحدات المراد إنتاجها</label>
+          <div class="stepper">
+            <button type="button" aria-label="إنقاص" (click)="step($event, card.project.id, card.project.productionQuantity, -1)">−</button>
+            <input
+              [id]="'qty-' + card.project.id"
+              type="number"
+              min="1"
+              class="num"
+              [value]="card.project.productionQuantity"
+              (change)="setQuantity(card.project.id, +$any($event.target).value)"
+            />
+            <button type="button" aria-label="زيادة" (click)="step($event, card.project.id, card.project.productionQuantity, 1)">+</button>
+          </div>
+        </div>
+
+        <div class="cost">
+          <div>
+            <span>تكلفة الوحدة</span>
+            <strong class="num">{{ card.unitCost | money }}</strong>
+          </div>
+          <div>
+            <span>إجمالي الطلبية</span>
+            <strong class="num">{{ card.totalCost | money: true }}</strong>
+          </div>
+          <span class="open"><app-icon name="chevron-left" [size]="18" /></span>
+        </div>
+      </div>
+    </article>
+  }
+</div>
+
+<app-modal [(open)]="creating" title="مشروع جديد" subtitle="يُنشأ المشروع مع عقدة المستوى 0 (المنتج النهائي القابل للشحن)" width="640px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="project-form">
+    <label class="field">
+      <span class="field__label">رمز المشروع *</span>
+      <input class="input ltr" formControlName="code" placeholder="MX-100" />
+    </label>
+    <label class="field">
+      <span class="field__label">العميل *</span>
+      <input class="input" formControlName="customer" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">اسم المنتج النهائي *</span>
+      <input class="input" formControlName="name" placeholder="مثال: آلة تغليف أفقية" />
+    </label>
+    <label class="field">
+      <span class="field__label">عدد الوحدات *</span>
+      <input class="input" type="number" min="1" formControlName="productionQuantity" />
+    </label>
+    <label class="field">
+      <span class="field__label">تاريخ التسليم *</span>
+      <input class="input" type="date" formControlName="dueDate" />
+    </label>
+    <label class="field">
+      <span class="field__label">القسم الرئيسي</span>
+      <select class="select" formControlName="discipline">
+        @for (d of disciplines; track d.key) {
+          <option [value]="d.key">{{ d.label }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">صورة المنتج</span>
+      <input class="input file-input" type="file" accept="image/*" (change)="onImage($event)" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">الوصف</span>
+      <textarea class="textarea" formControlName="description"></textarea>
+    </label>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="project-form"><app-icon name="check" [size]="16" /> إنشاء المشروع</button>
+  </ng-container>
+</app-modal>

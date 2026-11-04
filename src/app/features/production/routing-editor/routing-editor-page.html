@@ -1,0 +1,133 @@
+@if (node(); as n) {
+  <a class="back" routerLink="/production/pool"><app-icon name="arrow-left" [size]="16" /> حوض التصنيع</a>
+
+  @let s = summary();
+  <header class="head enter-fade-up">
+    <app-product-visual class="head__visual" [image]="n.image" [code]="n.code" [discipline]="n.discipline" [iconSize]="30" />
+    <div class="head__info">
+      <div class="row">
+        <span class="badge badge--primary">جدول مسار الإنتاج</span>
+        <span class="code">{{ n.code }}</span>
+        <span class="badge">المستوى {{ level() }}</span>
+        @if (n.decision !== 'make') {
+          <span class="badge badge--warning">القرار الحالي ليس «تصنيع»</span>
+        }
+      </div>
+      <h1>{{ n.name }}</h1>
+      <p class="muted">
+        {{ project()?.name }} · كمية الدفعة <strong class="num">{{ lot() | num }} {{ unitLabels[n.unit] }}</strong> ·
+        <a [routerLink]="['/projects', n.projectId, 'items', n.id]">صفحة المكون</a>
+      </p>
+    </div>
+    <dl class="head__stats">
+      <div><dt>الساعات المخططة / الفعلية</dt><dd class="num">{{ s.planned | num }} / {{ s.actual | num }}</dd></div>
+      <div><dt>تكلفة العمليات / وحدة</dt><dd class="num">{{ s.cost | money }}</dd></div>
+      <div><dt>عمليات خارجية</dt><dd class="num">{{ s.external }}</dd></div>
+    </dl>
+    <app-progress-ring [value]="s.progress" [size]="84" [stroke]="3" />
+  </header>
+
+  <section class="card">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title"><app-icon name="route" [size]="18" /> العمليات</h2>
+        <p class="card__subtitle">انقر على أي عملية لتحرير كامل تفاصيلها — يتم الحفظ تلقائياً</p>
+      </div>
+      <button type="button" class="btn btn--primary btn--sm" (click)="add()"><app-icon name="plus" [size]="15" /> إضافة عملية</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table ops">
+        <thead>
+          <tr>
+            <th>Seq</th>
+            <th>العملية</th>
+            <th>المكان / المحطة</th>
+            <th>الفترة المخططة</th>
+            <th>ساعات (مخطط/فعلي)</th>
+            <th>إعداد / قطعة</th>
+            <th>تكلفة / وحدة</th>
+            <th>الإنجاز</th>
+            <th>منجزة</th>
+            <th>الجودة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.op.id) {
+            <tr [class.late]="row.late" [class.done]="row.op.completed">
+              <td><span class="seq num">{{ row.op.sequence }}</span></td>
+              <td class="clickable" (click)="edit(row.op)">
+                <div class="title">
+                  <strong>{{ row.op.name }}</strong>
+                  @if (row.op.description) {
+                    <small>{{ row.op.description }}</small>
+                  }
+                  <span class="row tags">
+                    @if (row.op.inputs.length) {
+                      <span class="badge"><app-icon name="git-merge" [size]="11" /> {{ row.op.inputs.length }} مدخلات</span>
+                    }
+                    @if (row.op.consumables.length) {
+                      <span class="badge"><app-icon name="package" [size]="11" /> {{ row.op.consumables.length }} مستهلكات</span>
+                    }
+                    @if (!row.op.onTime) {
+                      <span class="badge badge--danger" [title]="row.op.delayReason">تأخير: {{ row.op.delayReason || 'بدون سبب' }}</span>
+                    }
+                  </span>
+                </div>
+              </td>
+              <td>
+                @if (row.op.location === 'external') {
+                  <span class="badge badge--info"><app-icon name="external" [size]="11" /> خارجي</span>
+                  <div class="subtle">{{ row.op.subcontractor }}</div>
+                } @else {
+                  <span class="ws">{{ row.workstation?.name ?? '—' }}</span>
+                  <div class="subtle ltr">{{ row.workstation?.code }}</div>
+                }
+              </td>
+              <td class="num muted nowrap">{{ row.op.earliestStart | arDate: 'short' }} ← {{ row.op.latestFinish | arDate: 'short' }}</td>
+              <td class="num">{{ row.op.plannedHours | num }} / {{ row.op.actualHours | num }}</td>
+              <td class="num muted">{{ row.op.setupMinutes }}′ / {{ row.op.runMinutesPerUnit }}′</td>
+              <td class="num"><strong>{{ row.cost | money }}</strong></td>
+              <td style="min-width: 130px"><app-progress-bar [value]="row.progress" /></td>
+              <td>
+                <input type="checkbox" class="check" [checked]="row.op.completed" (change)="toggleCompleted(row.op, $any($event.target).checked)" aria-label="تم التنفيذ" />
+              </td>
+              <td>
+                <span class="badge" [class.badge--success]="row.op.qcStatus === 'passed'" [class.badge--danger]="row.op.qcStatus === 'rejected'">
+                  {{ row.op.qcStatus === 'passed' ? 'مقبول' : row.op.qcStatus === 'rejected' ? 'مرفوض' : 'انتظار' }}
+                </span>
+              </td>
+              <td>
+                <div class="row">
+                  <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تحرير" (click)="edit(row.op)"><app-icon name="edit" [size]="15" /></button>
+                  <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="remove(row.op)"><app-icon name="trash" [size]="15" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="11">
+                <app-empty-state icon="route" title="لم تُعرّف عمليات بعد" text="أنشئ جدول المسار بإضافة العمليات بالتسلسل (10، 20، 30...).">
+                  <button type="button" class="btn btn--primary btn--sm" (click)="add()"><app-icon name="plus" [size]="15" /> إضافة أول عملية</button>
+                </app-empty-state>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <app-modal [(open)]="drawerOpen" mode="drawer" width="620px" [title]="editing() ? 'العملية ' + editing()!.sequence + ' — ' + editing()!.name : 'العملية'" subtitle="الحفظ تلقائي عند كل تعديل">
+    @if (editing(); as op) {
+      <app-operation-form [operation]="op" />
+    }
+    <ng-container modal-actions>
+      <button type="button" class="btn btn--primary" (click)="drawerOpen.set(false)"><app-icon name="check" [size]="16" /> تم</button>
+    </ng-container>
+  </app-modal>
+} @else {
+  <app-empty-state icon="factory" title="المكون غير موجود">
+    <a class="btn btn--primary btn--sm" routerLink="/production/pool">العودة</a>
+  </app-empty-state>
+}

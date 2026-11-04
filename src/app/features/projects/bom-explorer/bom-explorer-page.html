@@ -1,0 +1,138 @@
+@if (project() && current(); as node) {
+  <nav class="crumbs" aria-label="مسار التنقل">
+    <a routerLink="/projects"><app-icon name="home" [size]="15" /> المشاريع</a>
+    @for (crumb of path(); track crumb.id; let last = $last; let i = $index) {
+      <app-icon name="chevron-left" [size]="14" />
+      @if (last) {
+        <span class="crumbs__current" aria-current="page"><span class="crumbs__lvl num">L{{ i }}</span> {{ crumb.name }}</span>
+      } @else {
+        <button type="button" (click)="drill(crumb.id)"><span class="crumbs__lvl num">L{{ i }}</span> {{ crumb.name }}</button>
+      }
+    }
+  </nav>
+
+  @for (key of [node.id]; track key) {
+    <section class="focus" animate.enter="focus-enter">
+      <app-product-visual class="focus__visual" [image]="node.image" [name]="node.name" [code]="node.code" [discipline]="node.discipline" [iconSize]="46" />
+      <div class="focus__info">
+        <div class="row wrap">
+          <span class="level-pill">LEVEL {{ level() }} · {{ levelTitle() }}</span>
+          <span class="code">{{ node.code }}</span>
+          <app-decision-badge [decision]="node.decision" />
+        </div>
+        <h1>{{ node.name }}</h1>
+        @if (node.description) {
+          <p class="muted">{{ node.description }}</p>
+        }
+        <div class="focus__facts">
+          <div><span>القسم</span><strong><app-icon [name]="icon(node)" [size]="14" /> {{ discipline(node) }}</strong></div>
+          <div><span>الكمية في الأصل</span><strong class="num">× {{ node.quantity | num }} {{ unitLabels[node.unit] }}</strong></div>
+          <div><span>المطلوب للطلبية</span><strong class="num">{{ lotSize() | num }} {{ unitLabels[node.unit] }}</strong></div>
+          <div><span>تكلفة الوحدة التراكمية</span><strong class="num">{{ currentCost()?.unitCost | money }}</strong></div>
+        </div>
+        <div class="focus__actions">
+          <button type="button" class="btn btn--primary" (click)="openDetail(node.id)"><app-icon name="eye" [size]="16" /> تفاصيل المكون</button>
+          <button type="button" class="btn" (click)="adding.set(true)"><app-icon name="plus" [size]="16" /> إضافة مكون فرعي</button>
+          <button type="button" class="btn btn--ghost" (click)="goUp()"><app-icon name="arrow-left" [size]="16" /> {{ level() ? 'المستوى الأعلى' : 'كل المشاريع' }}</button>
+        </div>
+      </div>
+      <div class="focus__progress">
+        <app-progress-ring [value]="currentProgress()" [size]="104" [stroke]="3" />
+        <span>نسبة الإنجاز التراكمية</span>
+      </div>
+    </section>
+  }
+
+  <div class="bar">
+    <div>
+      <h2>{{ view() === 'cards' ? 'المستوى ' + (level() + 1) + ' — ' + childLevelTitle() : 'الهيكل الشجري الكامل' }}</h2>
+      <p class="subtle">
+        @if (view() === 'cards') {
+          نقرة واحدة للتعمق إلى المستوى التالي · نقرة مزدوجة لفتح صفحة التفاصيل
+        } @else {
+          شجرة تكرارية (أصل-فرع) بعدد طبقات غير محدود
+        }
+      </p>
+    </div>
+    <div class="toolbar">
+      @if (view() === 'cards') {
+        <div class="search-box">
+          <app-icon name="search" [size]="16" />
+          <input class="input input--sm" placeholder="بحث في المكونات..." [value]="filter()" (input)="filter.set($any($event.target).value)" />
+        </div>
+      } @else {
+        <button type="button" class="btn btn--sm" (click)="expandAll()"><app-icon name="layers" [size]="15" /> توسيع الكل</button>
+      }
+      <div class="segmented" role="tablist">
+        <button type="button" [class.active]="view() === 'cards'" (click)="view.set('cards')"><app-icon name="grid" [size]="15" /> بطاقات</button>
+        <button type="button" [class.active]="view() === 'tree'" (click)="view.set('tree')"><app-icon name="list" [size]="15" /> شجرة</button>
+      </div>
+    </div>
+  </div>
+
+  @if (view() === 'cards') {
+    <div class="cards">
+      @for (child of children(); track child.id; let i = $index) {
+        <article
+          class="bom-card"
+          tabindex="0"
+          [style.--i]="i"
+          (click)="onCardClick(child)"
+          (dblclick)="onCardDoubleClick(child)"
+          (keydown.enter)="drill(child.id)"
+          (keydown.space)="openDetail(child.id)"
+        >
+          <div class="bom-card__visual">
+            <app-product-visual [image]="child.image" [name]="child.name" [code]="child.code" [discipline]="child.discipline" [iconSize]="28" />
+            <span class="bom-card__lvl num">L{{ level() + 1 }}</span>
+            <span class="bom-card__qty num">× {{ child.quantity | num }}</span>
+          </div>
+          <div class="bom-card__body">
+            <div class="row">
+              <span class="code">{{ child.code }}</span>
+              <span class="spacer"></span>
+              <app-decision-badge [decision]="child.decision" />
+            </div>
+            <h3>{{ child.name }}</h3>
+            <div class="bom-card__meta">
+              <span><app-icon [name]="icon(child)" [size]="14" /> {{ discipline(child) }}</span>
+              @if (childCount(child.id); as count) {
+                <span class="drill"><app-icon name="layers" [size]="14" /> {{ count }} مكونات فرعية</span>
+              } @else {
+                <span class="leaf">أدنى مستوى</span>
+              }
+            </div>
+            <app-progress-bar [value]="insights.progressByNode().get(child.id) ?? 0" [height]="5" />
+            <div class="bom-card__foot">
+              <span class="subtle">تكلفة الوحدة</span>
+              <strong class="num">{{ insights.costByNode().get(child.id)?.unitCost | money }}</strong>
+            </div>
+          </div>
+        </article>
+      } @empty {
+        <div class="card empty">
+          <app-empty-state
+            icon="layers"
+            [title]="filter() ? 'لا توجد نتائج مطابقة' : 'هذا المكون في أدنى مستوى'"
+            text="يمكنك إضافة مكونات فرعية لإنشاء طبقة جديدة في الشجرة دون أي قيود على العمق."
+          >
+            <button type="button" class="btn btn--primary btn--sm" (click)="adding.set(true)"><app-icon name="plus" [size]="15" /> إضافة مكون فرعي</button>
+          </app-empty-state>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="card tree">
+      <div class="tree__head">
+        <span></span><span>المستوى</span><span></span><span>الرمز</span><span>المكون</span><span>الكمية</span><span>القرار</span><span>تكلفة الوحدة</span><span>الإنجاز</span>
+      </div>
+      <app-bom-tree-row [node]="node" [depth]="level()" [expandedIds]="expanded()" (toggled)="toggle($event)" (opened)="openDetail($event)" />
+    </div>
+  }
+
+  <app-add-component-dialog [(open)]="adding" [parentId]="node.id" />
+} @else {
+  <app-empty-state icon="tree" title="المشروع غير موجود" text="ربما تم حذف المشروع أو تغيير الرابط.">
+    <a class="btn btn--primary btn--sm" routerLink="/projects">العودة إلى المشاريع</a>
+  </app-empty-state>
+}

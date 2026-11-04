@@ -1,0 +1,141 @@
+<app-page-header
+  title="التكلفة التراكمية"
+  subtitle="حساب تلقائي من الأسفل إلى الأعلى (Bottom-Up) — أي تغيير في سعر مادة خام أو تكلفة عملية يُعاد حسابه فوراً حتى المستوى 0"
+  eyebrow="Cost Roll-Up"
+  icon="coins"
+>
+  <select class="select project-select" [value]="selectedId()" (change)="selectProject($any($event.target).value)">
+    @for (p of projects.sorted(); track p.id) {
+      <option [value]="p.id" [selected]="p.id === selectedId()">{{ p.code }} — {{ p.name }}</option>
+    }
+  </select>
+</app-page-header>
+
+@if (root(); as r) {
+  @let s = structure();
+  <section class="kpis">
+    <app-stat-card label="تكلفة وحدة المنتج النهائي" [value]="(r.unitCost | money)" icon="coins" hint="المستوى 0 — تشمل جميع الطبقات" />
+    <app-stat-card
+      label="إجمالي تكلفة الطلبية"
+      [value]="(r.unitCost * (selected()?.productionQuantity ?? 1) | money)"
+      icon="trending"
+      tone="accent"
+      [hint]="'لعدد ' + (selected()?.productionQuantity ?? 1) + ' وحدات'"
+    />
+    <app-stat-card label="تكلفة المواد والمشتريات" [value]="(s.material | money)" icon="package" tone="info" [hint]="((s.material / (r.unitCost || 1)) * 100 | num: '%') + ' من التكلفة'" />
+    <app-stat-card label="تكلفة العمالة والعمليات" [value]="(s.operations | money)" icon="factory" tone="success" [hint]="((s.operations / (r.unitCost || 1)) * 100 | num: '%') + ' من التكلفة'" />
+  </section>
+
+  <div class="layout">
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2 class="card__title"><app-icon name="tree" [size]="18" /> تقرير التكلفة حسب شجرة المنتج</h2>
+          <p class="card__subtitle">أسعار الشراء قابلة للتعديل مباشرة من الجدول</p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="btn btn--sm" (click)="expandAll()">توسيع الكل</button>
+          <button type="button" class="btn btn--sm btn--ghost" (click)="collapseAll()">طي الكل</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table cost-table">
+          <thead>
+            <tr>
+              <th>المكون</th>
+              <th>الكمية</th>
+              <th>مواد / شراء</th>
+              <th>المكونات الفرعية</th>
+              <th>العمليات</th>
+              <th>تكلفة الوحدة</th>
+              <th>الممتدة</th>
+              <th>الحصة</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.node.id) {
+              <tr [class.root]="row.depth === 0">
+                <td>
+                  <div class="name" [style.padding-inline-start.px]="row.depth * 22">
+                    <button type="button" class="toggle" [class.hidden]="!row.hasChildren" (click)="toggle(row.node.id)">
+                      <app-icon [name]="expanded().has(row.node.id) ? 'chevron-down' : 'chevron-left'" [size]="15" />
+                    </button>
+                    <span class="lvl num">L{{ row.depth }}</span>
+                    <a [routerLink]="['/projects', row.node.projectId, 'items', row.node.id]">{{ row.node.name }}</a>
+                    @if (row.node.decision === 'buy') {
+                      <span class="badge badge--accent">شراء</span>
+                    }
+                  </div>
+                </td>
+                <td class="num muted">× {{ row.line.quantity | num }}</td>
+                <td class="num">
+                  @if (row.node.decision === 'buy') {
+                    <input
+                      class="input input--sm price"
+                      type="number"
+                      min="0"
+                      step="any"
+                      [value]="row.node.purchaseUnitPrice ?? 0"
+                      (change)="setBuyPrice(row.node.id, +$any($event.target).value)"
+                    />
+                  } @else {
+                    {{ row.line.ownMaterial | money }}
+                  }
+                </td>
+                <td class="num muted">{{ row.line.childrenCost | money }}</td>
+                <td class="num muted">{{ row.line.operationCost | money }}</td>
+                <td class="num"><strong>{{ row.line.unitCost | money }}</strong></td>
+                <td class="num">{{ row.line.extendedCost | money }}</td>
+                <td class="share">
+                  <span class="share__bar"><span [style.width.%]="row.share * 100"></span></span>
+                  <span class="num subtle">{{ row.share * 100 | num: '%' }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="stack">
+      <section class="card">
+        <div class="card__header"><h2 class="card__title"><app-icon name="layers" [size]="18" /> توزيع التكلفة على المكونات الرئيسية</h2></div>
+        <div class="card__body bars">
+          @for (item of mainComponents(); track item.node.id) {
+            <div class="bars__row">
+              <div class="bars__label">
+                <span>{{ item.node.name }}</span>
+                <strong class="num">{{ item.line.extendedCost | money }}</strong>
+              </div>
+              <span class="bars__track"><span [style.width.%]="item.ratio * 100"></span></span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__header">
+          <div>
+            <h2 class="card__title"><app-icon name="refresh" [size]="18" /> محاكاة أسعار المواد الخام</h2>
+            <p class="card__subtitle">غيّر السعر ولاحظ إعادة الحساب الفوري لجميع المستويات</p>
+          </div>
+        </div>
+        <div class="card__body materials">
+          @for (m of projectMaterials(); track m.id) {
+            <label class="material">
+              <span class="material__name">
+                <strong>{{ m.name }}</strong>
+                <small class="ltr">{{ m.code }} · / {{ unitLabels[m.unit] }}</small>
+              </span>
+              <input class="input input--sm price" type="number" min="0" step="0.05" [value]="m.unitCost" (input)="setMaterialPrice(m.id, +$any($event.target).value)" />
+            </label>
+          } @empty {
+            <p class="subtle">لا توجد مواد خام معيّنة لمكونات هذا المشروع.</p>
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
+} @else {
+  <app-empty-state icon="coins" title="لا توجد مشاريع" text="أنشئ مشروعاً لعرض تقرير التكلفة." />
+}

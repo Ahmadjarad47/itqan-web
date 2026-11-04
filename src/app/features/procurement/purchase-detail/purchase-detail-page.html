@@ -1,0 +1,194 @@
+@if (request(); as r) {
+  <a class="back" routerLink="/procurement/requests"><app-icon name="arrow-left" [size]="16" /> طلبات الشراء</a>
+
+  <header class="head enter-fade-up">
+    <div class="head__main">
+      <div class="row wrap">
+        <span class="code">{{ r.number }}</span>
+        @if (project(); as p) {
+          <a class="badge badge--primary" [routerLink]="['/projects', p.id]">{{ p.code }} — {{ p.name }}</a>
+        } @else {
+          <span class="badge">شراء مستقل</span>
+        }
+        <span class="badge" [class.badge--success]="currentIndex() >= definitions.length" [class.badge--accent]="currentIndex() < definitions.length">{{ status() }}</span>
+        @if (delay() > 0 && currentIndex() < definitions.length) {
+          <span class="badge badge--danger"><app-icon name="clock" [size]="12" /> متأخر {{ delay() }} يوم</span>
+        }
+      </div>
+      <h1>{{ r.title }}</h1>
+      @if (node(); as n) {
+        <a class="muted node-link" [routerLink]="['/projects', n.projectId, 'items', n.id]">
+          <span class="ltr">{{ n.code }}</span> · فتح صفحة المكون <app-icon name="chevron-left" [size]="14" />
+        </a>
+      }
+    </div>
+    <dl class="facts">
+      <div><dt>الكمية</dt><dd class="num">{{ r.quantity | num }} {{ unitLabels[r.unit] }}</dd></div>
+      <div><dt>المورد المعتمد</dt><dd>{{ supplier()?.name ?? '—' }}</dd></div>
+      <div><dt>سعر الوحدة</dt><dd class="num">{{ r.unitPrice | money }}</dd></div>
+      <div><dt>القيمة الإجمالية</dt><dd class="num">{{ r.unitPrice === null ? '—' : (r.unitPrice * r.quantity | money) }}</dd></div>
+      <div>
+        <dt>الأولوية</dt>
+        <dd>
+          <select class="select input--sm" (change)="setPriority($any($event.target).value)">
+            @for (p of priorities; track p) {
+              <option [value]="p" [selected]="p === r.priority">{{ priorityLabels[p] }}</option>
+            }
+          </select>
+        </dd>
+      </div>
+    </dl>
+    <div class="head__ring">
+      <app-progress-ring [value]="progress()" [size]="92" [stroke]="3" />
+      <button type="button" class="btn btn--danger btn--sm" (click)="remove()"><app-icon name="trash" [size]="14" /> حذف</button>
+    </div>
+  </header>
+
+  <section class="timeline">
+    @for (def of definitions; track def.key; let i = $index) {
+      @let stage = r.stages[i];
+      @let g = guard(def.key);
+      <article
+        class="stage"
+        [class.stage--done]="stage.done"
+        [class.stage--current]="i === currentIndex()"
+        [class.stage--failed]="def.key === 'qualityControl' && r.qualityResult === 'failed'"
+        [class.stage--open]="openStage() === def.key"
+      >
+        <div class="stage__rail">
+          <span class="stage__dot">
+            @if (stage.done) {
+              <app-icon name="check" [size]="16" />
+            } @else {
+              <span class="num">{{ i + 1 }}</span>
+            }
+          </span>
+        </div>
+        <div class="stage__card">
+          <button type="button" class="stage__head" (click)="toggleOpen(def.key)">
+            <span class="stage__icon"><app-icon [name]="def.icon" [size]="18" /></span>
+            <span class="stage__title">
+              <strong>{{ def.label }}</strong>
+              <small>{{ def.hint }}</small>
+            </span>
+            <span class="stage__meta">
+              @if (stage.attachments.length) {
+                <span class="badge num"><app-icon name="file" [size]="12" /> {{ stage.attachments.length }}</span>
+              }
+              @if (stage.done) {
+                <span class="badge badge--success">نعم · {{ stage.date | arDate: 'short' }}</span>
+              } @else if (i === currentIndex()) {
+                <span class="badge badge--accent badge--dot">المرحلة الحالية</span>
+              } @else {
+                <span class="badge">لا</span>
+              }
+              <app-icon [name]="openStage() === def.key ? 'chevron-down' : 'chevron-left'" [size]="16" />
+            </span>
+          </button>
+
+          @if (openStage() === def.key) {
+            <div class="stage__body" animate.enter="enter-fade">
+              @switch (def.key) {
+                @case ('rfqSent') {
+                  <h4 class="section-title">عروض الموردين</h4>
+                  <app-quotes-panel [request]="r" />
+                }
+                @case ('optionsPresented') {
+                  <h4 class="section-title">قائمة العروض البديلة</h4>
+                  <app-quotes-panel [request]="r" />
+                }
+                @case ('mcdmDecision') {
+                  <h4 class="section-title">مصفوفة اتخاذ القرار متعدد المعايير</h4>
+                  <app-mcdm-panel [request]="r" />
+                }
+                @case ('leadTime') {
+                  <div class="form-grid">
+                    <label class="field">
+                      <span class="field__label">تاريخ التسليم المقدر (ETA)</span>
+                      <input class="input" type="date" [value]="r.eta ?? ''" (change)="setEta('eta', $any($event.target).value)" />
+                    </label>
+                    <label class="field">
+                      <span class="field__label">ETA المعدّل (في حال التأخير)</span>
+                      <input class="input" type="date" [value]="r.revisedEta ?? ''" (change)="setEta('revisedEta', $any($event.target).value)" />
+                    </label>
+                    <div class="delay-box" [class.late]="delay() > 0">
+                      <app-icon name="clock" [size]="20" />
+                      <span>
+                        <strong class="num">{{ delay() }} يوم</strong>
+                        <small>وقت إضافي متراكم</small>
+                      </span>
+                    </div>
+                  </div>
+                }
+                @case ('qualityControl') {
+                  <div class="qc">
+                    <div class="segmented">
+                      <button type="button" [class.active]="r.qualityResult === 'passed'" (click)="setQuality('passed')">
+                        <app-icon name="check-circle" [size]="15" /> إيجابية
+                      </button>
+                      <button type="button" [class.active]="r.qualityResult === 'failed'" (click)="setQuality('failed')">
+                        <app-icon name="x-circle" [size]="15" /> سلبية
+                      </button>
+                    </div>
+                    @if (r.qualityResult === 'failed') {
+                      <label class="field" animate.enter="enter-fade">
+                        <span class="field__label">الإجراءات الإضافية المطلوبة</span>
+                        <textarea class="textarea" [value]="r.correctiveAction" (change)="setCorrectiveAction($any($event.target).value)"></textarea>
+                      </label>
+                    }
+                  </div>
+                }
+                @case ('warehouseReceipt') {
+                  <p class="info">
+                    <app-icon name="warehouse" [size]="16" />
+                    عند تأكيد الاستلام يُفتح سجل مخزون للمادة في «مستودع الأجزاء المشتراة» ويُحدَّث سعر الشراء في شجرة المنتج.
+                  </p>
+                }
+              }
+
+              <div class="stage__grid">
+                <label class="field">
+                  <span class="field__label">التاريخ</span>
+                  <input class="input input--sm" type="date" [value]="stage.date ?? ''" (change)="setStageDate(def.key, $any($event.target).value)" />
+                </label>
+                <label class="field">
+                  <span class="field__label">ملاحظات</span>
+                  <input class="input input--sm" [value]="stage.note" (change)="setStageNote(def.key, $any($event.target).value)" />
+                </label>
+              </div>
+
+              <div class="docs">
+                <app-file-drop kind="document" [compact]="true" label="رفع المستندات ذات الصلة" (added)="addFiles(def.key, $event)" (rejected)="rejectFiles($event)" />
+                <app-attachment-list [attachments]="stage.attachments" emptyText="" (removed)="removeFile(def.key, $event)" />
+              </div>
+
+              <div class="stage__actions">
+                @if (!g.allowed && g.reason) {
+                  <span class="guard"><app-icon name="alert" [size]="14" /> {{ g.reason }}</span>
+                }
+                <span class="spacer"></span>
+                <button
+                  type="button"
+                  class="btn btn--sm"
+                  [class.btn--primary]="!stage.done"
+                  [disabled]="!g.allowed"
+                  (click)="toggleStage(def.key)"
+                >
+                  @if (stage.done) {
+                    <app-icon name="undo" [size]="14" /> إعادة فتح المرحلة
+                  } @else {
+                    <app-icon name="check" [size]="14" /> تأكيد إتمام المرحلة
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </article>
+    }
+  </section>
+} @else {
+  <app-empty-state icon="cart" title="طلب الشراء غير موجود">
+    <a class="btn btn--primary btn--sm" routerLink="/procurement/requests">العودة</a>
+  </app-empty-state>
+}

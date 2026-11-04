@@ -1,0 +1,155 @@
+@let kpi = dashboard.kpis();
+
+<section class="hero enter-fade-up">
+  <div class="hero__text">
+    <span class="hero__eyebrow">منظومة تخطيط موارد المؤسسات الصناعية</span>
+    <h1>أهلاً بك، {{ session.displayName() }}</h1>
+    <p>
+      لديك <strong>{{ kpi.activeProjects }}</strong> مشاريع قيد التنفيذ، و<strong>{{ kpi.runningOps }}</strong> عملية إنتاجية جارية،
+      و<strong>{{ kpi.openPurchases }}</strong> طلب شراء مفتوح.
+    </p>
+    <div class="hero__actions">
+      <a class="btn btn--accent" routerLink="/projects"><app-icon name="tree" [size]="17" /> استعراض شجرة المنتج</a>
+      <a class="btn hero__ghost" routerLink="/production/gantt"><app-icon name="gantt" [size]="17" /> مخطط جانت</a>
+    </div>
+  </div>
+  <app-logo class="hero__logo" variant="light" [size]="190" />
+</section>
+
+<section class="kpis">
+  <app-stat-card label="المشاريع النشطة" [value]="kpi.activeProjects" [hint]="'من أصل ' + kpi.totalProjects + ' مشاريع'" icon="tree" />
+  <app-stat-card label="مكونات شجرة المنتج" [value]="kpi.components" hint="عبر جميع المستويات" icon="layers" tone="accent" />
+  <app-stat-card
+    label="طلبات الشراء المفتوحة"
+    [value]="kpi.openPurchases"
+    [hint]="kpi.delayedPurchases + ' طلبات متأخرة عن موعد التوريد'"
+    icon="cart"
+    [tone]="kpi.delayedPurchases ? 'danger' : 'info'"
+  />
+  <app-stat-card
+    label="العمليات الجارية"
+    [value]="kpi.runningOps"
+    [hint]="kpi.lateOps + ' عمليات متأخرة'"
+    icon="factory"
+    [tone]="kpi.lateOps ? 'warning' : 'success'"
+  />
+  <app-stat-card label="المهام النشطة" [value]="kpi.activeTasks" [hint]="kpi.pendingTasks + ' بانتظار قبول الموظف'" icon="clipboard" tone="success" />
+</section>
+
+<section class="layout">
+  <div class="card projects">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title"><app-icon name="target" [size]="18" /> تقدم المشاريع</h2>
+        <p class="card__subtitle">نسبة الإنجاز التراكمية من أدنى مكون حتى المنتج النهائي</p>
+      </div>
+      <a class="btn btn--sm" routerLink="/projects">كل المشاريع</a>
+    </div>
+    <div class="card__body project-list">
+      @for (card of dashboard.projectCards(); track card.project.id) {
+        <a class="project" [routerLink]="['/projects', card.project.id]">
+          <app-product-visual
+            class="project__visual"
+            [image]="card.root?.image ?? null"
+            [name]="card.project.name"
+            [discipline]="card.root?.discipline ?? 'mechanical'"
+            [iconSize]="22"
+          />
+          <div class="project__info">
+            <div class="row">
+              <span class="code">{{ card.project.code }}</span>
+              <span class="badge" [class.badge--success]="card.project.status === 'active'" [class.badge--accent]="card.project.status === 'planning'">
+                {{ statusLabels[card.project.status] }}
+              </span>
+            </div>
+            <strong>{{ card.project.name }}</strong>
+            <span class="subtle">{{ card.project.customer }} · {{ card.components }} مكون · {{ card.project.productionQuantity }} وحدة</span>
+          </div>
+          <div class="project__meta">
+            <span class="subtle">تكلفة الوحدة</span>
+            <strong class="num">{{ card.unitCost | money }}</strong>
+            <span class="subtle" [class.danger]="card.daysLeft < 30">التسليم {{ card.project.dueDate | arDate }}</span>
+          </div>
+          <app-progress-ring [value]="card.progress" [size]="62" />
+        </a>
+      }
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title"><app-icon name="git-merge" [size]="18" /> قرار التصنيع أو الشراء</h2>
+        <p class="card__subtitle">توزيع المكونات على أحواض الإنتاج والشراء</p>
+      </div>
+    </div>
+    <div class="card__body">
+      @let split = dashboard.sourcingSplit();
+      <div class="split-bar">
+        <span class="split-bar__make" [style.flex]="split.make"></span>
+        <span class="split-bar__buy" [style.flex]="split.buy"></span>
+        <span class="split-bar__none" [style.flex]="split.undecided"></span>
+      </div>
+      <div class="split-legend">
+        <div><i class="dot make"></i> تصنيع (MAKE) <strong class="num">{{ split.make }}</strong></div>
+        <div><i class="dot buy"></i> شراء (BUY) <strong class="num">{{ split.buy }}</strong></div>
+        <div><i class="dot none"></i> بانتظار القرار <strong class="num">{{ split.undecided }}</strong></div>
+      </div>
+
+      <div class="divider"></div>
+      <h3 class="section-title">مراحل تدفق الشراء</h3>
+      <div class="funnel">
+        @for (stage of dashboard.purchaseFunnel(); track stage.label) {
+          <div class="funnel__row">
+            <span class="funnel__label">{{ stage.label }}</span>
+            <span class="funnel__bar"><span [style.width.%]="stage.ratio * 100"></span></span>
+            <strong class="num">{{ stage.count }}</strong>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card upcoming">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title"><app-icon name="clock" [size]="18" /> العمليات خلال الأيام السبعة القادمة</h2>
+        <p class="card__subtitle">مرتبة حسب آخر تاريخ انتهاء</p>
+      </div>
+      <a class="btn btn--sm" routerLink="/production/gantt">عرض جانت</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>العملية</th>
+            <th>المكون</th>
+            <th>الفترة</th>
+            <th>التقدم</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of dashboard.upcomingOperations(); track row.op.id) {
+            <tr class="clickable" [routerLink]="['/production/routing', row.op.nodeId]">
+              <td>
+                <div class="row">
+                  <span class="code">{{ row.op.sequence }}</span>
+                  <strong>{{ row.op.name }}</strong>
+                  @if (row.late) {
+                    <span class="badge badge--danger">متأخرة</span>
+                  }
+                  @if (row.op.location === 'external') {
+                    <span class="badge badge--info">خارجية</span>
+                  }
+                </div>
+              </td>
+              <td class="muted">{{ row.node?.name }}</td>
+              <td class="muted num">{{ row.op.earliestStart | arDate: 'short' }} ← {{ row.op.latestFinish | arDate: 'short' }}</td>
+              <td style="width: 160px"><app-progress-bar [value]="row.op.progressPercent" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

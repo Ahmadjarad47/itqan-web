@@ -1,0 +1,148 @@
+<app-page-header
+  title="طلبات الشراء"
+  subtitle="حوض الموافقات والمتابعة للمكونات المقرر شراؤها، مع تتبع الحالة خطوة بخطوة"
+  eyebrow="Buy Flow & Status Tracking"
+  icon="cart"
+>
+  <a class="btn" routerLink="/procurement/suppliers"><app-icon name="truck" [size]="17" /> قائمة الموردين</a>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> شراء مستقل</button>
+</app-page-header>
+
+@let t = totals();
+<section class="kpis">
+  <app-stat-card label="طلبات مفتوحة" [value]="t.open" icon="inbox" />
+  <app-stat-card label="قيمة الالتزامات" [value]="(t.committed | money: true)" icon="coins" tone="accent" hint="طلبات بمورد وسعر معتمد" />
+  <app-stat-card label="منتجات واردة" [value]="t.incoming" icon="truck" tone="info" hint="أمر شراء صادر ولم تُسلّم بعد" />
+  <app-stat-card label="متأخرة عن ETA" [value]="t.delayed" icon="clock" [tone]="t.delayed ? 'danger' : 'success'" />
+</section>
+
+<section class="card">
+  <div class="filters">
+    <div class="chips">
+      @for (s of segments; track s.key) {
+        <button type="button" class="chip" [class.active]="segment() === s.key" (click)="segment.set(s.key)">
+          {{ s.label }} <span class="count num">{{ counts()[s.key] }}</span>
+        </button>
+      }
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <app-icon name="search" [size]="16" />
+        <input class="input input--sm" placeholder="رقم الطلب أو اسم المكون" [value]="search()" (input)="search.set($any($event.target).value)" />
+      </div>
+      <select class="select select--sm input--sm" (change)="projectFilter.set($any($event.target).value)">
+        <option value="">كل المشاريع</option>
+        @for (p of projects.sorted(); track p.id) {
+          <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+        }
+      </select>
+      <select class="select input--sm" (change)="supplierFilter.set($any($event.target).value)">
+        <option value="">كل الموردين</option>
+        @for (s of suppliers.sorted(); track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>الطلب</th>
+          <th>المشروع</th>
+          <th>المورد</th>
+          <th>الكمية</th>
+          <th>الأولوية</th>
+          <th>المرحلة الحالية</th>
+          <th>التسليم المقدر</th>
+          <th>الإنجاز</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.request.id) {
+          <tr class="clickable" (click)="open(row.request.id)">
+            <td>
+              <div class="title">
+                <strong>{{ row.request.title }}</strong>
+                <span class="subtle"><span class="ltr">{{ row.request.number }}</span>@if (row.node) { · <span class="ltr">{{ row.node.code }}</span>}</span>
+              </div>
+            </td>
+            <td>
+              @if (row.project) {
+                <span class="code">{{ row.project.code }}</span>
+              } @else {
+                <span class="badge">مستقل</span>
+              }
+            </td>
+            <td>{{ row.supplier?.name ?? '—' }}</td>
+            <td class="num">{{ row.request.quantity | num }} {{ unitLabels[row.request.unit] }}</td>
+            <td>
+              <span
+                class="badge"
+                [class.badge--danger]="row.request.priority === 'urgent'"
+                [class.badge--warning]="row.request.priority === 'high'"
+              >{{ priorityLabels[row.request.priority] }}</span>
+            </td>
+            <td>
+              <div class="status">
+                <app-stage-dots [request]="row.request" />
+                <span [class.done]="row.completed" [class.failed]="row.request.qualityResult === 'failed' && !row.completed">{{ row.status }}</span>
+              </div>
+            </td>
+            <td>
+              @if (row.request.eta) {
+                <div class="eta">
+                  <span class="num">{{ row.request.eta | arDate: 'short' }}</span>
+                  @if (row.delay > 0 && !row.completed) {
+                    <span class="badge badge--danger num">+{{ row.delay }} يوم</span>
+                  }
+                </div>
+              } @else {
+                <span class="subtle">—</span>
+              }
+            </td>
+            <td style="width: 140px"><app-progress-bar [value]="row.progress" /></td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8"><app-empty-state icon="cart" title="لا توجد طلبات مطابقة" text="غيّر المرشحات أو افتح سجل شراء مستقل." /></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<app-modal [(open)]="creating" title="سجل شراء مستقل" subtitle="شراء مباشر غير مرتبط بأي مشروع" width="520px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="standalone-form">
+    <label class="field span-full">
+      <span class="field__label">البند المطلوب *</span>
+      <input class="input" formControlName="title" placeholder="مثال: زيت هيدروليك ISO VG46" />
+    </label>
+    <label class="field">
+      <span class="field__label">الكمية *</span>
+      <input class="input" type="number" min="0.01" step="any" formControlName="quantity" />
+    </label>
+    <label class="field">
+      <span class="field__label">الوحدة</span>
+      <select class="select" formControlName="unit">
+        @for (u of units; track u) {
+          <option [value]="u">{{ unitLabels[u] }}</option>
+        }
+      </select>
+    </label>
+    <label class="field span-full">
+      <span class="field__label">الأولوية</span>
+      <select class="select" formControlName="priority">
+        @for (p of priorities; track p) {
+          <option [value]="p">{{ priorityLabels[p] }}</option>
+        }
+      </select>
+    </label>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="standalone-form"><app-icon name="check" [size]="16" /> فتح السجل</button>
+  </ng-container>
+</app-modal>

@@ -1,0 +1,97 @@
+<app-page-header
+  title="حوض التصنيع والمسارات"
+  subtitle="المكونات المقرر تصنيعها (MAKE) وجداول مسار الإنتاج الخاصة بها"
+  eyebrow="Make Flow & Routing"
+  icon="factory"
+>
+  <a class="btn" routerLink="/production/gantt"><app-icon name="gantt" [size]="17" /> مخطط جانت</a>
+</app-page-header>
+
+@let t = totals();
+<section class="kpis">
+  <app-stat-card label="مكونات للتصنيع" [value]="t.components" icon="factory" />
+  <app-stat-card label="عمليات مخططة" [value]="t.operations" icon="route" tone="accent" />
+  <app-stat-card label="ساعات العمل المخططة" [value]="(t.hours | num)" icon="clock" tone="info" />
+  <app-stat-card label="عمليات خارجية (مقاول فرعي)" [value]="t.external" icon="external" tone="success" />
+</section>
+
+<section class="card">
+  <div class="filters">
+    <div class="chips">
+      @for (f of filters; track f.key) {
+        <button type="button" class="chip" [class.active]="filter() === f.key" (click)="filter.set(f.key)">
+          {{ f.label }} <span class="count num">{{ counts()[f.key] }}</span>
+        </button>
+      }
+    </div>
+    <select class="select input--sm" (change)="projectFilter.set($any($event.target).value)">
+      <option value="">كل المشاريع</option>
+      @for (p of projects.sorted(); track p.id) {
+        <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>المكون</th>
+          <th>المشروع</th>
+          <th>كمية الدفعة</th>
+          <th>العمليات</th>
+          <th>الساعات</th>
+          <th>الفترة</th>
+          <th>تكلفة العمليات / وحدة</th>
+          <th>التقدم</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.node.id) {
+          <tr class="clickable" (click)="open(row.node.id)">
+            <td>
+              <div class="row">
+                <app-product-visual class="thumb" [image]="row.node.image" [discipline]="row.node.discipline" [iconSize]="15" />
+                <span class="title">
+                  <strong>{{ row.node.name }}</strong>
+                  <small><span class="ltr">{{ row.node.code }}</span> · المستوى {{ row.level }}</small>
+                </span>
+              </div>
+            </td>
+            <td><span class="code">{{ row.project?.code }}</span></td>
+            <td class="num">{{ row.lot | num }}</td>
+            <td>
+              @if (row.ops.length) {
+                <span class="num">{{ row.ops.length }}</span>
+                @if (row.external) {
+                  <span class="badge badge--info">{{ row.external }} خارجية</span>
+                }
+              } @else {
+                <span class="badge badge--warning">بلا مسار</span>
+              }
+            </td>
+            <td class="num">{{ row.hours | num }}</td>
+            <td class="muted">
+              @if (row.start) {
+                {{ row.start | arDate: 'short' }} ← {{ row.end | arDate: 'short' }}
+              } @else {
+                —
+              }
+            </td>
+            <td class="num">{{ row.cost | money }}</td>
+            <td style="width: 170px">
+              <div class="row">
+                <app-progress-bar [value]="row.progress" />
+                @if (row.state === 'late') {
+                  <app-icon name="alert" [size]="15" class="late" />
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="8"><app-empty-state icon="factory" title="لا توجد مكونات مطابقة" text="حدد قرار «تصنيع» للمكونات من صفحة التفاصيل لتظهر هنا." /></td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

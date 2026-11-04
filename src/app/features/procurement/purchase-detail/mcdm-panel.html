@@ -1,0 +1,72 @@
+@if (request().quotes.length) {
+  <div class="table-wrap">
+    <table class="table matrix">
+      <thead>
+        <tr>
+          <th>المورد / المعيار</th>
+          @for (criterion of request().mcdm.criteria; track criterion.id) {
+            <th>
+              <div class="crit">
+                <span>{{ criterion.name }}</span>
+                <label class="weight">
+                  <input type="number" min="0" max="100" [value]="criterion.weight" (change)="setWeight(criterion.id, +$any($event.target).value)" />
+                  <span>%</span>
+                </label>
+              </div>
+            </th>
+          }
+          <th>النتيجة</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (quote of request().quotes; track quote.id) {
+          @let result = results().get(quote.id);
+          <tr [class.winner]="result?.rank === 1" [class.selected]="quote.supplierId === request().supplierId">
+            <td>
+              <div class="supplier">
+                @if (result?.rank === 1) {
+                  <span class="crown"><app-icon name="star" [size]="13" /></span>
+                }
+                <span>
+                  <strong>{{ suppliers.find(quote.supplierId)?.name }}</strong>
+                  <small class="num">{{ quote.unitPrice | money }} · {{ quote.leadTimeDays }} يوم</small>
+                </span>
+              </div>
+            </td>
+            @for (criterion of request().mcdm.criteria; track criterion.id) {
+              <td>
+                <input
+                  class="score num"
+                  type="number"
+                  min="0"
+                  max="10"
+                  [value]="score(quote.id, criterion.id)"
+                  (change)="setScore(quote.id, criterion.id, +$any($event.target).value)"
+                />
+              </td>
+            }
+            <td class="result">
+              <span class="result__bar"><span [style.width.%]="result?.score ?? 0"></span></span>
+              <strong class="num">{{ result?.score ?? 0 | num }}</strong>
+            </td>
+            <td>
+              @if (quote.supplierId === request().supplierId) {
+                <span class="badge badge--success"><app-icon name="check" [size]="12" /> المعتمد</span>
+              } @else {
+                <button type="button" class="btn btn--sm" (click)="approve(quote.id)">اعتماد</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="foot subtle">
+    الدرجات من 0 إلى 10 لكل معيار · مجموع الأوزان
+    <strong class="num" [class.bad]="totalWeight() !== 100">{{ totalWeight() }}%</strong>
+    · نموذج المجموع الموزون (WSM)
+  </p>
+} @else {
+  <p class="subtle">أضف عروض الأسعار أولاً لتفعيل مصفوفة القرار.</p>
+}

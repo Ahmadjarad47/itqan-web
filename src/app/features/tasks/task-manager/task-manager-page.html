@@ -1,0 +1,242 @@
+<app-page-header
+  title="إدارة المهام — شاشة المدير"
+  subtitle="إسناد عمليات وحدة الإنتاج إلى الأقسام والموظفين، وتتبع الحالة والتقدم والأرشفة من شاشة واحدة"
+  eyebrow="نموذج تتبع الإنتاج"
+  icon="clipboard"
+>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مهمة جديدة</button>
+</app-page-header>
+
+@let k = kpis();
+<section class="kpis">
+  <app-stat-card label="مهام مفتوحة" [value]="k.open" icon="inbox" />
+  <app-stat-card label="نشطة الآن" [value]="k.active" icon="play" tone="success" />
+  <app-stat-card label="متأخرة" [value]="k.overdue" icon="clock" [tone]="k.overdue ? 'danger' : 'success'" />
+  <app-stat-card label="مُعادة للمراجعة" [value]="k.returned" icon="undo" [tone]="k.returned ? 'warning' : 'info'" />
+</section>
+
+<div class="layout">
+  <section class="card">
+    <div class="filters">
+      @for (f of filters; track f.key) {
+        <button type="button" class="chip" [class.active]="filter() === f.key" (click)="filter.set(f.key)">
+          {{ f.label }} <span class="count num">{{ counts()[f.key] }}</span>
+        </button>
+      }
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>المهمة</th>
+            <th>القسم / الموظف</th>
+            <th>الفترة</th>
+            <th>الحالة</th>
+            <th>التقدم</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of rows(); track v.task.id) {
+            <tr>
+              <td>
+                <div class="title">
+                  <span class="row"><span class="code">{{ v.task.number }}</span><strong>{{ v.operation?.sequence }} — {{ v.operation?.name }}</strong></span>
+                  <small>{{ v.node?.name }} · <span class="ltr">{{ v.project?.code }}</span></small>
+                </div>
+              </td>
+              <td>
+                <div class="row">
+                  @if (v.assignee) {
+                    <app-avatar [name]="v.assignee.name" [size]="30" />
+                  }
+                  <span class="who">
+                    <strong>{{ v.assignee?.name }}</strong>
+                    <small>{{ v.department?.name }}</small>
+                  </span>
+                </div>
+              </td>
+              <td class="num muted nowrap">
+                {{ v.task.start | arDate: 'short' }} ← {{ v.task.end | arDate: 'short' }}
+                @if (v.overdue) {
+                  <span class="badge badge--danger">متأخرة</span>
+                }
+              </td>
+              <td>
+                <app-task-status-badge [status]="v.task.status" />
+                @if (v.task.status === 'rejected' && v.task.rejectReason) {
+                  <div class="reason">{{ rejectLabels[v.task.rejectReason] }}@if (v.task.rejectNote) { — {{ v.task.rejectNote }} }</div>
+                }
+              </td>
+              <td style="min-width: 150px">
+                <app-progress-bar [value]="v.progress" />
+                <small class="subtle num">{{ v.completedQuantity | num }} / {{ v.task.targetQuantity | num }}</small>
+              </td>
+              <td>
+                @if (v.task.archived) {
+                  <button type="button" class="btn btn--sm btn--ghost" (click)="archive(v.task.id, false)"><app-icon name="undo" [size]="14" /> استعادة</button>
+                } @else if (v.task.status === 'completed') {
+                  <button type="button" class="btn btn--sm" (click)="archive(v.task.id, true)"><app-icon name="archive" [size]="14" /> أرشفة</button>
+                } @else if (v.task.status === 'rejected') {
+                  <button type="button" class="btn btn--sm btn--primary" (click)="openReassign(v.task)"><app-icon name="send" [size]="14" /> إعادة إسناد</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6"><app-empty-state icon="clipboard" title="لا توجد مهام في هذا التصنيف" /></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="card report">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title"><app-icon name="trending" [size]="18" /> التقرير المجمّع حسب القسم</h2>
+        <p class="card__subtitle">مدمج من البيانات المُدخلة في شاشات الموظفين</p>
+      </div>
+    </div>
+    <div class="card__body">
+      @for (r of report(); track r.dept.id) {
+        <div class="dept">
+          <div class="dept__head">
+            <strong>{{ r.dept.name }}</strong>
+            <span class="subtle num">{{ r.total }} مهام</span>
+          </div>
+          <app-progress-bar [value]="r.progress" />
+          <div class="dept__facts">
+            <span><i class="dot active"></i>نشطة <b class="num">{{ r.active }}</b></span>
+            <span><i class="dot done"></i>مكتملة <b class="num">{{ r.completed }}</b></span>
+            <span>كمية منجزة <b class="num">{{ r.quantity | num }}</b></span>
+            @if (r.issues) {
+              <span class="issue">ملاحظات جودة <b class="num">{{ r.issues }}</b></span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </aside>
+</div>
+
+<app-modal [(open)]="creating" title="مهمة جديدة" subtitle="تعيين عملية مكون إلى القسم والموظف المعني" width="680px">
+  <form [formGroup]="form" (ngSubmit)="send()" id="task-form" class="flow">
+    <div class="flow__step">
+      <span class="flow__num">1</span>
+      <div class="flow__body">
+        <h4>تحديد المكون والعملية</h4>
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">المشروع</span>
+            <select class="select" formControlName="projectId">
+              <option value="">اختر...</option>
+              @for (p of projects.sorted(); track p.id) {
+                <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">المكون</span>
+            <select class="select" formControlName="nodeId">
+              <option value="">اختر...</option>
+              @for (n of nodeOptions(); track n.id) {
+                <option [value]="n.id">{{ n.code }} — {{ n.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field span-full">
+            <span class="field__label">العملية</span>
+            <select class="select" formControlName="operationId">
+              <option value="">اختر...</option>
+              @for (op of operationOptions(); track op.id) {
+                <option [value]="op.id">{{ op.sequence }} — {{ op.name }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow__step">
+      <span class="flow__num">2</span>
+      <div class="flow__body">
+        <h4>تحديد القسم والشخص المكلّف</h4>
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">القسم</span>
+            <select class="select" formControlName="departmentId">
+              <option value="">اختر...</option>
+              @for (d of departments.all(); track d.id) {
+                <option [value]="d.id">{{ d.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">الموظف</span>
+            <select class="select" formControlName="assigneeId">
+              <option value="">اختر...</option>
+              @for (e of employeeOptions(); track e.id) {
+                <option [value]="e.id">{{ e.name }} — {{ e.title }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow__step">
+      <span class="flow__num">3</span>
+      <div class="flow__body">
+        <h4>تواريخ البداية / النهاية والملاحظات</h4>
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">البداية</span>
+            <input class="input" type="date" formControlName="start" />
+          </label>
+          <label class="field">
+            <span class="field__label">النهاية</span>
+            <input class="input" type="date" formControlName="end" />
+          </label>
+          <label class="field">
+            <span class="field__label">الكمية المستهدفة</span>
+            <input class="input" type="number" min="1" formControlName="targetQuantity" />
+          </label>
+          <label class="field span-full">
+            <span class="field__label">ملاحظات</span>
+            <textarea class="textarea" formControlName="notes"></textarea>
+          </label>
+        </div>
+      </div>
+    </div>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="task-form"><app-icon name="send" [size]="16" /> 4. إرسال المهمة</button>
+  </ng-container>
+</app-modal>
+
+<app-modal [(open)]="reassignOpen" title="إعادة إسناد المهمة" [subtitle]="reassigning()?.number ?? ''" width="480px">
+  <div class="form-grid">
+    <label class="field">
+      <span class="field__label">القسم</span>
+      <select class="select" (change)="reassignDept.set($any($event.target).value); reassignEmployee.set('')">
+        @for (d of departments.all(); track d.id) {
+          <option [value]="d.id" [selected]="d.id === reassignDept()">{{ d.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">الموظف</span>
+      <select class="select" (change)="reassignEmployee.set($any($event.target).value)">
+        <option value="">اختر...</option>
+        @for (e of employees.inDepartment(reassignDept()); track e.id) {
+          <option [value]="e.id">{{ e.name }}</option>
+        }
+      </select>
+    </label>
+  </div>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="reassignOpen.set(false)">إلغاء</button>
+    <button type="button" class="btn btn--primary" [disabled]="!reassignEmployee()" (click)="confirmReassign()"><app-icon name="send" [size]="16" /> إرسال</button>
+  </ng-container>
+</app-modal>

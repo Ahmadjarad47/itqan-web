@@ -1,0 +1,161 @@
+@if (session.employee(); as me) {
+  <app-page-header
+    [title]="'مهامي — ' + me.name"
+    [subtitle]="me.title + ' · لوحة المهام الشخصية'"
+    eyebrow="شاشة الموظف"
+    icon="user-check"
+  />
+
+  @if (unseen().length) {
+    <div class="notice enter-fade-up">
+      <span class="notice__icon"><app-icon name="bell" [size]="20" /></span>
+      <div>
+        <strong>لديك {{ unseen().length }} مهام جديدة</strong>
+        <p>راجع المهام وقرر قبولها، أو أعدها للمدير في حال عدم توفر الوقت أو خطأ القسم.</p>
+      </div>
+    </div>
+  }
+
+  <div class="board">
+    @for (col of columns; track col.status) {
+      @let items = byStatus().get(col.status) ?? [];
+      <section class="column" [class]="'column column--' + col.status">
+        <header class="column__head">
+          <app-icon [name]="col.icon" [size]="16" />
+          <strong>{{ col.title }}</strong>
+          <span class="badge num">{{ items.length }}</span>
+        </header>
+        <div class="column__body">
+          @for (v of items; track v.task.id) {
+            <article class="task" [class.task--new]="!v.task.seenByAssignee" (mouseenter)="v.task.seenByAssignee || markSeen(v.task.id)" animate.enter="enter-fade-up">
+              <div class="row">
+                <span class="code">{{ v.task.number }}</span>
+                @if (!v.task.seenByAssignee) {
+                  <span class="badge badge--info">جديدة</span>
+                }
+                @if (v.overdue) {
+                  <span class="badge badge--danger">متأخرة</span>
+                }
+                <span class="spacer"></span>
+                <span class="ltr subtle">{{ v.project?.code }}</span>
+              </div>
+              <h3>{{ v.operation?.sequence }} — {{ v.operation?.name }}</h3>
+              <p class="muted">{{ v.node?.name }}</p>
+              <div class="task__dates">
+                <app-icon name="calendar" [size]="13" />
+                {{ v.task.start | arDate: 'short' }} ← {{ v.task.end | arDate: 'short' }}
+                <span class="subtle">({{ v.task.end | relativeDays }})</span>
+              </div>
+              @if (v.task.notes) {
+                <p class="task__notes"><app-icon name="clipboard" [size]="13" /> {{ v.task.notes }}</p>
+              }
+              @if (col.status === 'active' || col.status === 'completed') {
+                <app-progress-bar [value]="v.progress" />
+                <small class="subtle num">المنجز {{ v.completedQuantity | num }} من {{ v.task.targetQuantity | num }}</small>
+                @if (v.task.progress.length) {
+                  <ul class="log">
+                    @for (entry of v.task.progress.slice(-3); track entry.id) {
+                      <li>
+                        <span class="num">+{{ entry.completedQuantity | num }}</span>
+                        <span class="badge" [class.badge--success]="entry.qualityOk" [class.badge--danger]="!entry.qualityOk">{{ entry.qualityOk ? 'جودة سليمة' : 'ملاحظة جودة' }}</span>
+                        <span class="subtle">{{ entry.at | arDate: 'datetime' }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              }
+              <div class="task__actions">
+                @switch (col.status) {
+                  @case ('sent') {
+                    <button type="button" class="btn btn--sm btn--primary" (click)="accept(v.task.id)"><app-icon name="check" [size]="14" /> قبول</button>
+                    <button type="button" class="btn btn--sm btn--danger" (click)="openReject(v.task.id)"><app-icon name="undo" [size]="14" /> رفض / إرجاع</button>
+                  }
+                  @case ('accepted') {
+                    <button type="button" class="btn btn--sm btn--primary" (click)="start(v.task.id)"><app-icon name="play" [size]="14" /> بدء العمل</button>
+                  }
+                  @case ('active') {
+                    <button type="button" class="btn btn--sm" (click)="openProgress(v.task.id)"><app-icon name="trending" [size]="14" /> إدخال التقدم</button>
+                    <button type="button" class="btn btn--sm btn--primary" (click)="complete(v.task.id)"><app-icon name="check-circle" [size]="14" /> إنهاء</button>
+                  }
+                }
+              </div>
+            </article>
+          } @empty {
+            <p class="column__empty">لا توجد مهام</p>
+          }
+        </div>
+      </section>
+    }
+  </div>
+
+  @if (returned().length) {
+    <section class="card returned">
+      <div class="card__header"><h2 class="card__title"><app-icon name="undo" [size]="16" /> مهام أعدتها إلى المدير</h2></div>
+      <div class="card__body">
+        @for (v of returned(); track v.task.id) {
+          <div class="returned__item">
+            <span class="code">{{ v.task.number }}</span>
+            <span>{{ v.operation?.name }} — {{ v.node?.name }}</span>
+            <span class="badge badge--danger">{{ v.task.rejectReason ? rejectLabels[v.task.rejectReason] : '' }}</span>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  <app-modal [(open)]="rejectOpen" title="رفض / إرجاع المهمة" subtitle="ستُعاد المهمة إلى المدير لإعادة الإسناد" width="460px">
+    <div class="reasons">
+      @for (r of rejectReasons; track r) {
+        <label class="reason" [class.active]="rejectReason() === r">
+          <input type="radio" name="reason" [checked]="rejectReason() === r" (change)="rejectReason.set(r)" />
+          {{ rejectLabels[r] }}
+        </label>
+      }
+    </div>
+    <label class="field">
+      <span class="field__label">ملاحظة</span>
+      <textarea class="textarea" [value]="rejectNote()" (input)="rejectNote.set($any($event.target).value)"></textarea>
+    </label>
+    <ng-container modal-actions>
+      <button type="button" class="btn" (click)="rejectOpen.set(false)">إلغاء</button>
+      <button type="button" class="btn btn--danger" (click)="confirmReject()"><app-icon name="undo" [size]="16" /> إرجاع المهمة</button>
+    </ng-container>
+  </app-modal>
+
+  <app-modal [(open)]="progressOpen" title="إدخال التطورات أثناء العملية" [subtitle]="progressId() ? progressTask().operation?.name ?? '' : ''" width="460px">
+    <div class="form-grid">
+      <label class="field">
+        <span class="field__label">الكمية المكتملة</span>
+        <input class="input" type="number" min="0" step="any" [value]="progressQty()" (input)="progressQty.set(+$any($event.target).value)" />
+      </label>
+      <div class="field">
+        <span class="field__label">حالة الجودة</span>
+        <div class="segmented">
+          <button type="button" [class.active]="progressOk()" (click)="progressOk.set(true)">سليمة</button>
+          <button type="button" [class.active]="!progressOk()" (click)="progressOk.set(false)">ملاحظة</button>
+        </div>
+      </div>
+      <label class="field span-full">
+        <span class="field__label">ملاحظات</span>
+        <textarea class="textarea" [value]="progressNote()" (input)="progressNote.set($any($event.target).value)"></textarea>
+      </label>
+    </div>
+    <ng-container modal-actions>
+      <button type="button" class="btn" (click)="progressOpen.set(false)">إلغاء</button>
+      <button type="button" class="btn btn--primary" (click)="saveProgress()"><app-icon name="check" [size]="16" /> حفظ</button>
+    </ng-container>
+  </app-modal>
+} @else {
+  <app-page-header title="مهامي — شاشة الموظف" subtitle="أنت مسجّل حالياً كمدير. اختر موظفاً لمحاكاة لوحة مهامه الشخصية." eyebrow="شاشة الموظف" icon="user-check" />
+  <div class="people">
+    @for (e of employees.all(); track e.id) {
+      <button type="button" class="person" (click)="session.switchUser(e.id)">
+        <app-avatar [name]="e.name" [size]="48" />
+        <strong>{{ e.name }}</strong>
+        <small>{{ e.title }}</small>
+      </button>
+    } @empty {
+      <app-empty-state icon="users" title="لا يوجد موظفون" />
+    }
+  </div>
+}

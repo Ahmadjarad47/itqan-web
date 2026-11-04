@@ -1,0 +1,64 @@
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+
+  .select {
+    width: auto;
+    min-width: 170px;
+  }
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.stock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 140px;
+
+  .low {
+    color: var(--danger);
+  }
+
+  &__bar {
+    height: 5px;
+    border-radius: 99px;
+    background: var(--surface-sunken);
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      background: var(--success);
+    }
+
+    &.low span {
+      background: var(--danger);
+    }
+  }
+
+  small {
+    font-size: 11px;
+  }
+}
+
+.neg {
+  color: var(--warning);
+}

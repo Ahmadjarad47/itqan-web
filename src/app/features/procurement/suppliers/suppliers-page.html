@@ -1,0 +1,144 @@
+<app-page-header
+  title="قائمة الموردين"
+  subtitle="أسماء الموردين وتصنيفاتهم ومعلومات الاتصال، وما تم توريده سابقاً لكل مشروع"
+  eyebrow="وحدة الشراء"
+  icon="truck"
+>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مورد جديد</button>
+</app-page-header>
+
+<section class="card">
+  <div class="filters toolbar">
+    <div class="search-box">
+      <app-icon name="search" [size]="16" />
+      <input class="input input--sm" placeholder="بحث بالاسم، جهة الاتصال أو المدينة" [value]="search()" (input)="search.set($any($event.target).value)" />
+    </div>
+    <select class="select input--sm" (change)="category.set($any($event.target).value)">
+      <option value="">كل التصنيفات</option>
+      @for (c of categories; track c) {
+        <option [value]="c">{{ c }}</option>
+      }
+    </select>
+    <span class="spacer"></span>
+    <span class="subtle num">{{ rows().length }} مورد</span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>المورد</th>
+          <th>التصنيف</th>
+          <th>التقييم</th>
+          <th>الاتصال</th>
+          <th>المدينة</th>
+          <th>التوريدات السابقة</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.supplier.id) {
+          <tr>
+            <td>
+              <div class="row">
+                <app-avatar [name]="row.supplier.name" [size]="36" />
+                <span class="who">
+                  <strong>{{ row.supplier.name }}</strong>
+                  <small>{{ row.supplier.contactPerson }}</small>
+                </span>
+              </div>
+            </td>
+            <td><span class="badge badge--primary">{{ row.supplier.category }}</span></td>
+            <td>
+              <span class="stars" [attr.aria-label]="row.supplier.rating + ' من 5'">
+                @for (s of stars; track s) {
+                  <app-icon name="star" [size]="15" [class.on]="s <= row.supplier.rating" />
+                }
+              </span>
+            </td>
+            <td>
+              <div class="contact">
+                <span class="ltr"><app-icon name="phone" [size]="13" /> {{ row.supplier.phone }}</span>
+                <span class="ltr"><app-icon name="mail" [size]="13" /> {{ row.supplier.email }}</span>
+              </div>
+            </td>
+            <td>{{ row.supplier.city }}</td>
+            <td>
+              <button type="button" class="history-btn" [disabled]="!row.history.length" (click)="toggle(row.supplier.id)">
+                <span class="num">{{ row.history.length }}</span> مكون
+                @if (row.history.length) {
+                  <app-icon [name]="expandedId() === row.supplier.id ? 'chevron-down' : 'chevron-left'" [size]="14" />
+                }
+              </button>
+            </td>
+            <td>
+              <div class="row">
+                <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تعديل" (click)="openEdit(row.supplier)"><app-icon name="edit" [size]="15" /></button>
+                <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="remove(row.supplier)"><app-icon name="trash" [size]="15" /></button>
+              </div>
+            </td>
+          </tr>
+          @if (expandedId() === row.supplier.id) {
+            <tr class="history" animate.enter="enter-fade">
+              <td colspan="7">
+                <div class="history__list">
+                  @for (h of row.history; track h.id) {
+                    <a class="history__item" [routerLink]="['/procurement/requests', h.id]">
+                      <span class="code">{{ h.project }}</span>
+                      <span class="code">{{ h.code }}</span>
+                      <span>{{ h.component }}</span>
+                      <span class="badge" [class.badge--success]="h.delivered" [class.badge--info]="!h.delivered">{{ h.delivered ? 'تم التوريد' : 'قيد التوريد' }}</span>
+                    </a>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        } @empty {
+          <tr><td colspan="7"><app-empty-state icon="truck" title="لا يوجد موردون مطابقون" /></td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<app-modal [(open)]="dialogOpen" [title]="editingId() ? 'تعديل بيانات المورد' : 'مورد جديد'" width="600px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="supplier-form">
+    <label class="field span-full">
+      <span class="field__label">اسم المورد *</span>
+      <input class="input" formControlName="name" />
+    </label>
+    <label class="field">
+      <span class="field__label">التصنيف *</span>
+      <select class="select" formControlName="category">
+        @for (c of categories; track c) {
+          <option [value]="c">{{ c }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">التقييم (1-5)</span>
+      <input class="input" type="number" min="1" max="5" formControlName="rating" />
+    </label>
+    <label class="field">
+      <span class="field__label">جهة الاتصال</span>
+      <input class="input" formControlName="contactPerson" />
+    </label>
+    <label class="field">
+      <span class="field__label">المدينة</span>
+      <input class="input" formControlName="city" />
+    </label>
+    <label class="field">
+      <span class="field__label">الهاتف</span>
+      <input class="input ltr" formControlName="phone" />
+    </label>
+    <label class="field">
+      <span class="field__label">البريد الإلكتروني</span>
+      <input class="input ltr" type="email" formControlName="email" />
+    </label>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="dialogOpen.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="supplier-form"><app-icon name="check" [size]="16" /> حفظ</button>
+  </ng-container>
+</app-modal>

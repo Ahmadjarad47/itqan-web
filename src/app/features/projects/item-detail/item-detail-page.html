@@ -1,0 +1,324 @@
+@if (node(); as item) {
+  <nav class="crumbs" aria-label="مسار التنقل">
+    <a routerLink="/projects"><app-icon name="home" [size]="15" /> المشاريع</a>
+    @for (crumb of path(); track crumb.id; let i = $index; let last = $last) {
+      <app-icon name="chevron-left" [size]="14" />
+      @if (last) {
+        <span class="crumbs__current">{{ crumb.name }}</span>
+      } @else {
+        <a [routerLink]="['/projects', projectId()]" [queryParams]="i === 0 ? {} : { node: crumb.id }">{{ crumb.name }}</a>
+      }
+    }
+  </nav>
+
+  <header class="hero enter-fade-up">
+    <label class="hero__visual" title="تغيير صورة المكون">
+      <app-product-visual [image]="item.image" [name]="item.name" [code]="item.code" [discipline]="item.discipline" [iconSize]="42" />
+      <span class="hero__upload"><app-icon name="image" [size]="15" /> تغيير الصورة</span>
+      <input type="file" accept="image/*" (change)="onImage($event)" />
+    </label>
+    <div class="hero__info">
+      <div class="row wrap">
+        <span class="level-pill">LEVEL {{ level() }} · {{ levelTitle() }}</span>
+        <span class="code">{{ item.code }}</span>
+        <app-decision-badge [decision]="item.decision" />
+      </div>
+      <h1>{{ item.name }}</h1>
+      <p class="muted">{{ project()?.name }} · {{ project()?.customer }}</p>
+      <div class="row wrap">
+        <button type="button" class="btn btn--sm" (click)="backToTree()"><app-icon name="tree" [size]="15" /> العودة إلى الشجرة</button>
+        <button type="button" class="btn btn--sm" (click)="adding.set(true)"><app-icon name="plus" [size]="15" /> إضافة مكون فرعي</button>
+        @if (item.parentId) {
+          <button type="button" class="btn btn--sm btn--danger" (click)="remove()"><app-icon name="trash" [size]="15" /> حذف المكون</button>
+        }
+      </div>
+    </div>
+    <div class="hero__ring">
+      <app-progress-ring [value]="progress()" [size]="96" [stroke]="3" />
+      <span>الإنجاز التراكمي</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="stack">
+      <!-- B1 -->
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title"><span class="step">ب1</span> المعلومات الأساسية والتقنية</h2>
+          <span class="badge badge--success"><app-icon name="check" [size]="13" /> حفظ تلقائي</span>
+        </div>
+        <div class="card__body form-grid">
+          <label class="field">
+            <span class="field__label">رمز الجزء الفريد</span>
+            <input class="input ltr" [value]="item.code" (change)="updateCode($any($event.target).value)" />
+          </label>
+          <label class="field span-2">
+            <span class="field__label">اسم المكون</span>
+            <input class="input" [value]="item.name" (change)="update({ name: $any($event.target).value })" />
+          </label>
+          <label class="field">
+            <span class="field__label">القسم ذو الصلة</span>
+            <select class="select" [value]="item.discipline" (change)="updateDiscipline($any($event.target).value)">
+              @for (d of disciplines; track d.key) {
+                <option [value]="d.key" [selected]="d.key === item.discipline">{{ d.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">كمية الاستخدام (Multiplier)</span>
+            <input
+              class="input"
+              type="number"
+              min="0.01"
+              step="any"
+              [value]="item.quantity"
+              [disabled]="!item.parentId"
+              (change)="update({ quantity: +$any($event.target).value || 1 })"
+            />
+          </label>
+          <label class="field">
+            <span class="field__label">الوحدة</span>
+            <select class="select" (change)="updateUnit($any($event.target).value)">
+              @for (u of units; track u) {
+                <option [value]="u" [selected]="u === item.unit">{{ unitLabels[u] }}</option>
+              }
+            </select>
+          </label>
+          <label class="field span-full">
+            <span class="field__label">الوصف الفني</span>
+            <textarea class="textarea" [value]="item.description" (change)="update({ description: $any($event.target).value })"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <!-- Files -->
+      <section class="card">
+        <div class="card__header">
+          <div>
+            <h2 class="card__title"><app-icon name="file" [size]="18" /> ملفات التصميم CAD وملفات الجودة</h2>
+            <p class="card__subtitle">رسومات ثنائية الأبعاد، نماذج ثلاثية الأبعاد، واستمارة مراقبة الجودة</p>
+          </div>
+        </div>
+        <div class="card__body files">
+          @for (section of fileSections; track section.kind) {
+            <div class="files__col">
+              <h3 class="section-title"><app-icon [name]="section.icon" [size]="15" /> {{ attachmentRules[section.kind].label }}</h3>
+              <app-file-drop [kind]="section.kind" [compact]="true" label="رفع ملفات" (added)="addFiles($event)" (rejected)="rejectFiles($event)" />
+              <app-attachment-list [attachments]="filesOf(section.kind)" (removed)="removeFile($event)" />
+              @if (section.kind === 'model3d' && filesOf('model3d').length) {
+                <div class="viewer">
+                  <div class="viewer__scene">
+                    <div class="cube">
+                      <span class="f1"></span><span class="f2"></span><span class="f3"></span><span class="f4"></span><span class="f5"></span><span class="f6"></span>
+                    </div>
+                  </div>
+                  <span class="viewer__label"><app-icon name="cube" [size]="14" /> عارض ثلاثي الأبعاد — معاينة</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- B2 -->
+      <section class="card">
+        <div class="card__header">
+          <div>
+            <h2 class="card__title"><span class="step">ب2</span> تعيين المواد من المستودع</h2>
+            <p class="card__subtitle">المواد الخام والمنتجات غير المعالجة المستخدمة مباشرة في هذا المكون (لكل وحدة)</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>المادة</th>
+                <th>المستودع</th>
+                <th>الكمية / وحدة</th>
+                <th>سعر الوحدة</th>
+                <th>الإجمالي</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of assignedMaterials(); track row.item.materialId) {
+                <tr>
+                  <td>
+                    <div class="row">
+                      <span class="code">{{ row.material?.code }}</span>
+                      <strong>{{ row.material?.name ?? 'مادة محذوفة' }}</strong>
+                    </div>
+                  </td>
+                  <td class="muted">{{ row.material?.warehouse }}</td>
+                  <td>
+                    <div class="row">
+                      <input
+                        class="input input--sm qty"
+                        type="number"
+                        min="0"
+                        step="any"
+                        [value]="row.item.quantity"
+                        (change)="setMaterialQty(row.item.materialId, +$any($event.target).value)"
+                      />
+                      <span class="subtle">{{ row.material ? unitLabels[row.material.unit] : '' }}</span>
+                    </div>
+                  </td>
+                  <td class="num">{{ row.material?.unitCost | money }}</td>
+                  <td class="num"><strong>{{ row.total | money }}</strong></td>
+                  <td>
+                    <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="إزالة" (click)="removeMaterial(row.item.materialId)">
+                      <app-icon name="trash" [size]="15" />
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="subtle center">لم تُعيَّن أي مواد لهذا المكون</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="card__body add-material">
+          <select class="select" [value]="newMaterialId()" (change)="newMaterialId.set($any($event.target).value)">
+            <option value="">اختر مادة من المستودع...</option>
+            @for (m of availableMaterials(); track m.id) {
+              <option [value]="m.id">{{ m.code }} — {{ m.name }} ({{ m.stock | num }} {{ unitLabels[m.unit] }})</option>
+            }
+          </select>
+          <input class="input qty" type="number" min="0" step="any" [value]="newMaterialQty()" (input)="newMaterialQty.set(+$any($event.target).value)" />
+          <button type="button" class="btn btn--primary" [disabled]="!newMaterialId()" (click)="addMaterial()">
+            <app-icon name="plus" [size]="16" /> تعيين
+          </button>
+        </div>
+      </section>
+
+      <!-- B3 -->
+      <section class="card decision" [class.decision--missing]="!item.decision">
+        <div class="card__header">
+          <div>
+            <h2 class="card__title"><span class="step">ب3</span> قرار التوريد: تصنيع أم شراء؟ <span class="required">إلزامي</span></h2>
+            <p class="card__subtitle">ينتقل المكون تلقائياً إلى الحوض المناسب حسب القرار</p>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="options">
+            <button type="button" class="option" [class.selected]="item.decision === 'make'" (click)="decide('make')">
+              <span class="option__icon"><app-icon name="factory" [size]="24" /></span>
+              <span class="option__text">
+                <strong>تصنيع — MAKE</strong>
+                <small>ينتقل إلى حوض وحدة الإنتاج لإعداد مسار العمليات (Routing)</small>
+              </span>
+              <span class="option__check"><app-icon name="check" [size]="16" /></span>
+            </button>
+            <button type="button" class="option option--buy" [class.selected]="item.decision === 'buy'" (click)="decide('buy')">
+              <span class="option__icon"><app-icon name="cart" [size]="24" /></span>
+              <span class="option__text">
+                <strong>شراء — BUY</strong>
+                <small>ينتقل إلى حوض الموافقات والمتابعة لوحدة الشراء</small>
+              </span>
+              <span class="option__check"><app-icon name="check" [size]="16" /></span>
+            </button>
+          </div>
+
+          @switch (item.decision) {
+            @case ('buy') {
+              <div class="outcome" animate.enter="enter-fade">
+                <label class="field">
+                  <span class="field__label">سعر وحدة الشراء ($)</span>
+                  <input
+                    class="input"
+                    type="number"
+                    min="0"
+                    step="any"
+                    [value]="item.purchaseUnitPrice ?? ''"
+                    (change)="update({ purchaseUnitPrice: +$any($event.target).value || null })"
+                  />
+                  <span class="field__hint">يدخل في حساب التكلفة التراكمية ويُحدَّث تلقائياً عند الاستلام</span>
+                </label>
+                @if (purchase(); as request) {
+                  <a class="outcome__link" [routerLink]="['/procurement/requests', request.id]">
+                    <span>
+                      <strong>{{ request.number }}</strong>
+                      <small>{{ purchaseStatus()?.label }}</small>
+                    </span>
+                    <app-progress-bar [value]="purchaseStatus()?.progress ?? 0" />
+                    <app-icon name="chevron-left" [size]="18" />
+                  </a>
+                }
+              </div>
+            }
+            @case ('make') {
+              <div class="outcome" animate.enter="enter-fade">
+                <div class="outcome__stat">
+                  <span class="subtle">عمليات المسار</span>
+                  <strong class="num">{{ operations().length }}</strong>
+                </div>
+                <a class="outcome__link" [routerLink]="['/production/routing', item.id]">
+                  <span>
+                    <strong>جدول مسار الإنتاج</strong>
+                    <small>{{ operations().length ? 'تحرير العمليات والتواريخ والتكاليف' : 'لم تُعرّف عمليات بعد — ابدأ الآن' }}</small>
+                  </span>
+                  <app-icon name="chevron-left" [size]="18" />
+                </a>
+              </div>
+            }
+            @default {
+              <p class="warn"><app-icon name="alert" [size]="16" /> لم يُتخذ قرار التوريد بعد لهذا المكون.</p>
+            }
+          }
+        </div>
+      </section>
+    </div>
+
+    <aside class="stack side">
+      <section class="card cost-card">
+        <div class="card__header"><h2 class="card__title"><app-icon name="coins" [size]="18" /> التكلفة التراكمية</h2></div>
+        <div class="card__body">
+          @if (cost(); as c) {
+            <div class="cost-total">
+              <span>تكلفة الوحدة</span>
+              <strong class="num">{{ c.unitCost | money }}</strong>
+            </div>
+            <dl class="cost-lines">
+              <div><dt>مواد مباشرة / سعر شراء</dt><dd class="num">{{ c.ownMaterial | money }}</dd></div>
+              <div><dt>مجموع المكونات الفرعية</dt><dd class="num">{{ c.childrenCost | money }}</dd></div>
+              <div><dt>العمالة والعمليات</dt><dd class="num">{{ c.operationCost | money }}</dd></div>
+              <div class="sep"><dt>الكمية في الأصل</dt><dd class="num">× {{ c.quantity | num }}</dd></div>
+              <div><dt>التكلفة الممتدة</dt><dd class="num"><strong>{{ c.extendedCost | money }}</strong></dd></div>
+              <div><dt>المطلوب للطلبية</dt><dd class="num">{{ lotSize() | num }} {{ unitLabels[item.unit] }}</dd></div>
+            </dl>
+            <a class="btn btn--sm full" routerLink="/costing" [queryParams]="{ project: projectId() }">تقرير التكلفة الكامل</a>
+          }
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title"><app-icon name="layers" [size]="18" /> المكونات الفرعية</h2>
+          <span class="badge num">{{ children().length }}</span>
+        </div>
+        <div class="card__body children">
+          @for (child of children(); track child.id) {
+            <a class="child" [routerLink]="['/projects', projectId(), 'items', child.id]">
+              <app-product-visual class="child__visual" [image]="child.image" [discipline]="child.discipline" [iconSize]="16" />
+              <span class="child__text">
+                <strong>{{ child.name }}</strong>
+                <small><span class="ltr">{{ child.code }}</span> · × {{ child.quantity | num }}</small>
+              </span>
+              <app-decision-badge [decision]="child.decision" />
+            </a>
+          } @empty {
+            <app-empty-state icon="layers" title="مكون في أدنى مستوى" text="عادةً مادة خام أو منتج غير معالج." />
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <app-add-component-dialog [(open)]="adding" [parentId]="item.id" />
+} @else {
+  <app-empty-state icon="box" title="المكون غير موجود" text="ربما تم حذف المكون.">
+    <a class="btn btn--primary btn--sm" routerLink="/projects">العودة إلى المشاريع</a>
+  </app-empty-state>
+}

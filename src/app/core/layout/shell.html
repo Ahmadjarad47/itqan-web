@@ -1,0 +1,127 @@
+<div class="shell">
+  <aside class="sidebar" [class.sidebar--open]="sidebarOpen()">
+    <a class="brand" routerLink="/dashboard">
+      <app-logo variant="light" [size]="46" />
+      <span class="brand__text">
+        <strong>منظومة تخطيط الموارد</strong>
+        <small>الإنتاج الصناعي · ERP</small>
+      </span>
+    </a>
+
+    <nav class="nav" aria-label="القائمة الرئيسية">
+      @for (group of navigation; track group.title) {
+        <div class="nav__group">
+          <span class="nav__title">{{ group.title }}</span>
+          @for (item of group.items; track item.link) {
+            <a class="nav__link" [routerLink]="item.link" routerLinkActive="active">
+              <app-icon [name]="item.icon" [size]="19" />
+              <span>{{ item.label }}</span>
+            </a>
+          }
+        </div>
+      }
+    </nav>
+
+    <div class="sidebar__foot">
+      <div class="foot-card">
+        <app-icon name="shield" [size]="18" />
+        <span>نسخة واجهات تجريبية — البيانات محفوظة محلياً في المتصفح</span>
+      </div>
+    </div>
+  </aside>
+
+  @if (sidebarOpen()) {
+    <div class="scrim" animate.enter="enter-fade" animate.leave="leave-fade" (click)="sidebarOpen.set(false)"></div>
+  }
+
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="btn btn--ghost btn--icon menu-btn" aria-label="القائمة" (click)="sidebarOpen.set(true)">
+        <app-icon name="menu" />
+      </button>
+
+      <div class="topbar__date">
+        <app-icon name="calendar" [size]="16" />
+        <span>{{ today }}</span>
+      </div>
+
+      <div class="spacer"></div>
+
+      <button
+        type="button"
+        class="btn btn--ghost btn--icon"
+        [attr.aria-label]="session.theme() === 'light' ? 'الوضع الداكن' : 'الوضع الفاتح'"
+        (click)="session.toggleTheme()"
+      >
+        <app-icon [name]="session.theme() === 'light' ? 'moon' : 'sun'" />
+      </button>
+
+      <div class="menu-anchor">
+        <button type="button" class="btn btn--ghost btn--icon bell" aria-label="الإشعارات" (click)="toggleMenu($event, 'notifications')">
+          <app-icon name="bell" />
+          @if (notifications.items().length) {
+            <span class="bell__count num">{{ notifications.items().length }}</span>
+          }
+        </button>
+        @if (menu() === 'notifications') {
+          <div class="dropdown dropdown--wide" animate.enter="dropdown-enter" animate.leave="leave-fade" (click)="$event.stopPropagation()">
+            <div class="dropdown__head">
+              <strong>الإشعارات</strong>
+              <span class="badge badge--primary num">{{ notifications.items().length }}</span>
+            </div>
+            <div class="dropdown__list">
+              @for (item of notifications.items(); track item.id) {
+                <a class="notice" [routerLink]="item.link">
+                  <span class="notice__icon" [class]="'notice__icon tone-' + item.tone"><app-icon [name]="item.icon" [size]="16" /></span>
+                  <span class="notice__text">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.text }}</small>
+                  </span>
+                </a>
+              } @empty {
+                <p class="dropdown__empty">لا توجد إشعارات جديدة</p>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="menu-anchor">
+        <button type="button" class="user" (click)="toggleMenu($event, 'user')">
+          <app-avatar [name]="session.displayName()" [size]="36" />
+          <span class="user__text">
+            <strong>{{ session.displayName() }}</strong>
+            <small>{{ session.displayTitle() }}</small>
+          </span>
+          <app-icon name="chevron-down" [size]="16" />
+        </button>
+        @if (menu() === 'user') {
+          <div class="dropdown" animate.enter="dropdown-enter" animate.leave="leave-fade" (click)="$event.stopPropagation()">
+            <div class="dropdown__head"><strong>تبديل المستخدم (محاكاة)</strong></div>
+            <div class="dropdown__list">
+              <button type="button" class="user-option" [class.active]="session.isManager()" (click)="switchUser(managerId)">
+                <app-avatar name="م. سامر الحلبي" [size]="28" />
+                <span><strong>م. سامر الحلبي</strong><small>مدير الإنتاج — شاشة المدير</small></span>
+              </button>
+              @for (employee of employees.all(); track employee.id) {
+                <button type="button" class="user-option" [class.active]="session.userId() === employee.id" (click)="switchUser(employee.id)">
+                  <app-avatar [name]="employee.name" [size]="28" />
+                  <span><strong>{{ employee.name }}</strong><small>{{ employee.title }}</small></span>
+                </button>
+              }
+            </div>
+            <button type="button" class="dropdown__action" (click)="resetData()">
+              <app-icon name="refresh" [size]="16" /> إعادة تعيين البيانات التجريبية
+            </button>
+          </div>
+        }
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>
+
+<app-feedback-host />

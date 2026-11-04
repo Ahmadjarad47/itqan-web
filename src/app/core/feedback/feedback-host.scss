@@ -1,0 +1,139 @@
+.toasts {
+  position: fixed;
+  z-index: 120;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 48px));
+}
+
+.toast {
+  --tone: var(--primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px 14px 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--tone);
+  box-shadow: var(--shadow-lg);
+
+  &--success {
+    --tone: var(--success);
+  }
+
+  &--warning {
+    --tone: var(--warning);
+  }
+
+  &--danger {
+    --tone: var(--danger);
+  }
+
+  &--info {
+    --tone: var(--info);
+  }
+
+  &__icon {
+    color: var(--tone);
+    margin-top: 1px;
+  }
+
+  &__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+
+    span {
+      color: var(--text-muted);
+      font-size: 12.5px;
+    }
+  }
+
+  &__close {
+    border: 0;
+    background: none;
+    color: var(--text-subtle);
+    cursor: pointer;
+    padding: 2px;
+  }
+}
+
+.toast-enter {
+  animation: toast-in 0.35s var(--ease) both;
+}
+
+.toast-leave {
+  animation: toast-in 0.25s ease reverse both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: rgba(0, 20, 18, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.confirm {
+  position: fixed;
+  z-index: 111;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(420px, calc(100vw - 32px));
+  padding: 28px 24px 20px;
+  text-align: center;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+
+  h3 {
+    font-size: 17px;
+    margin-top: 12px;
+  }
+
+  p {
+    color: var(--text-muted);
+    margin-top: 6px;
+    font-size: 13.5px;
+  }
+
+  &__icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    color: var(--primary);
+    background: var(--primary-soft);
+
+    &.danger {
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 22px;
+  }
+}
+
+.confirm-enter {
+  animation: scale-in 0.28s var(--ease) both;
+}

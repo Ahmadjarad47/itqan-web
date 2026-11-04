@@ -1,0 +1,191 @@
+<app-page-header
+  title="المستودع"
+  subtitle="المواد الخام والمستهلكات والأجزاء المشتراة، مع سجل الحركات (استلام، صرف، استهلاك العمليات)"
+  eyebrow="المخزون"
+  icon="warehouse"
+>
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مادة جديدة</button>
+</app-page-header>
+
+@let t = totals();
+<section class="kpis">
+  <app-stat-card label="أصناف المخزون" [value]="t.items" icon="package" />
+  <app-stat-card label="قيمة المخزون" [value]="(t.value | money: true)" icon="coins" tone="accent" />
+  <app-stat-card label="تحت الحد الأدنى" [value]="t.low" icon="alert" [tone]="t.low ? 'warning' : 'success'" />
+  <app-stat-card label="المستودعات" [value]="t.warehouses" icon="warehouse" tone="info" />
+</section>
+
+<section class="card">
+  <div class="filters">
+    <div class="segmented">
+      <button type="button" [class.active]="tab() === 'stock'" (click)="tab.set('stock')"><app-icon name="package" [size]="15" /> الأرصدة</button>
+      <button type="button" [class.active]="tab() === 'movements'" (click)="tab.set('movements')"><app-icon name="refresh" [size]="15" /> سجل الحركات</button>
+    </div>
+    @if (tab() === 'stock') {
+      <div class="toolbar">
+        <div class="search-box">
+          <app-icon name="search" [size]="16" />
+          <input class="input input--sm" placeholder="بحث بالرمز أو الاسم" [value]="search()" (input)="search.set($any($event.target).value)" />
+        </div>
+        <select class="select input--sm" (change)="kindFilter.set($any($event.target).value)">
+          <option value="">كل الأنواع</option>
+          @for (k of kinds; track k) {
+            <option [value]="k">{{ kindLabels[k] }}</option>
+          }
+        </select>
+      </div>
+    }
+  </div>
+
+  @if (tab() === 'stock') {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>المادة</th>
+            <th>النوع</th>
+            <th>المستودع</th>
+            <th>الرصيد</th>
+            <th>سعر الوحدة</th>
+            <th>القيمة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.material.id) {
+            <tr>
+              <td>
+                <div class="title">
+                  <strong>{{ row.material.name }}</strong>
+                  <span class="code">{{ row.material.code }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="badge" [class.badge--primary]="row.material.kind === 'raw'" [class.badge--accent]="row.material.kind === 'consumable'" [class.badge--info]="row.material.kind === 'purchased'">
+                  {{ kindLabels[row.material.kind] }}
+                </span>
+              </td>
+              <td class="muted">{{ row.material.warehouse }}</td>
+              <td>
+                <div class="stock">
+                  <span class="num" [class.low]="row.low"><strong>{{ row.material.stock | num }}</strong> {{ unitLabels[row.material.unit] }}</span>
+                  @if (row.material.minStock) {
+                    <span class="stock__bar" [class.low]="row.low"><span [style.width.%]="row.ratio * 100"></span></span>
+                    <small class="subtle num">الحد الأدنى {{ row.material.minStock | num }}</small>
+                  }
+                </div>
+              </td>
+              <td class="num">{{ row.material.unitCost | money }}</td>
+              <td class="num"><strong>{{ row.value | money }}</strong></td>
+              <td>
+                <div class="row">
+                  <button type="button" class="btn btn--sm" (click)="openMove(row.material, 'receipt')"><app-icon name="download" [size]="14" /> استلام</button>
+                  <button type="button" class="btn btn--sm btn--ghost" (click)="openMove(row.material, 'issue')"><app-icon name="upload" [size]="14" /> صرف</button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7"><app-empty-state icon="warehouse" title="لا توجد مواد مطابقة" /></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>المادة</th>
+            <th>نوع الحركة</th>
+            <th>الكمية</th>
+            <th>المرجع</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of movements(); track row.movement.id) {
+            <tr>
+              <td class="muted num">{{ row.movement.at | arDate: 'datetime' }}</td>
+              <td><strong>{{ row.material?.name ?? '—' }}</strong></td>
+              <td>
+                <span class="badge" [class.badge--success]="row.movement.quantity > 0" [class.badge--warning]="row.movement.quantity < 0">
+                  {{ movementLabels[row.movement.type] }}
+                </span>
+              </td>
+              <td class="num" [class.neg]="row.movement.quantity < 0">
+                {{ row.movement.quantity > 0 ? '+' : '' }}{{ row.movement.quantity | num }} {{ row.material ? unitLabels[row.material.unit] : '' }}
+              </td>
+              <td class="muted">{{ row.movement.reference }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<app-modal [(open)]="creating" title="مادة جديدة" width="600px">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="material-form">
+    <label class="field">
+      <span class="field__label">الرمز *</span>
+      <input class="input ltr" formControlName="code" />
+    </label>
+    <label class="field">
+      <span class="field__label">النوع</span>
+      <select class="select" formControlName="kind">
+        @for (k of kinds; track k) {
+          <option [value]="k">{{ kindLabels[k] }}</option>
+        }
+      </select>
+    </label>
+    <label class="field span-full">
+      <span class="field__label">الاسم *</span>
+      <input class="input" formControlName="name" />
+    </label>
+    <label class="field">
+      <span class="field__label">الوحدة</span>
+      <select class="select" formControlName="unit">
+        @for (u of units; track u) {
+          <option [value]="u">{{ unitLabels[u] }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">سعر الوحدة ($) *</span>
+      <input class="input" type="number" min="0" step="any" formControlName="unitCost" />
+    </label>
+    <label class="field">
+      <span class="field__label">الرصيد الافتتاحي</span>
+      <input class="input" type="number" min="0" step="any" formControlName="stock" />
+    </label>
+    <label class="field">
+      <span class="field__label">الحد الأدنى</span>
+      <input class="input" type="number" min="0" step="any" formControlName="minStock" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">المستودع *</span>
+      <input class="input" formControlName="warehouse" />
+    </label>
+  </form>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
+    <button type="submit" class="btn btn--primary" form="material-form"><app-icon name="check" [size]="16" /> حفظ</button>
+  </ng-container>
+</app-modal>
+
+<app-modal [(open)]="moveOpen" [title]="(moveType() === 'receipt' ? 'استلام: ' : 'صرف: ') + (moving()?.name ?? '')" width="440px">
+  <div class="form-grid">
+    <label class="field">
+      <span class="field__label">الكمية ({{ moving() ? unitLabels[moving()!.unit] : '' }})</span>
+      <input class="input" type="number" min="0" step="any" [value]="moveQty()" (input)="moveQty.set(+$any($event.target).value)" />
+    </label>
+    <label class="field">
+      <span class="field__label">المرجع</span>
+      <input class="input" placeholder="رقم الإذن أو المشروع" [value]="moveRef()" (input)="moveRef.set($any($event.target).value)" />
+    </label>
+  </div>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="moveOpen.set(false)">إلغاء</button>
+    <button type="button" class="btn btn--primary" (click)="confirmMove()"><app-icon name="check" [size]="16" /> تسجيل الحركة</button>
+  </ng-container>
+</app-modal>

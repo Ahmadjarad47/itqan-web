@@ -1,0 +1,39 @@
+<div class="toasts" aria-live="polite">
+  @for (item of toast.toasts(); track item.id) {
+    <div [class]="'toast toast--' + item.tone" animate.enter="toast-enter" animate.leave="toast-leave">
+      <span class="toast__icon"><app-icon [name]="icons[item.tone]" [size]="18" /></span>
+      <div class="toast__body">
+        <strong>{{ item.title }}</strong>
+        @if (item.message) {
+          <span>{{ item.message }}</span>
+        }
+      </div>
+      <button type="button" class="toast__close" aria-label="إغلاق" (click)="toast.dismiss(item.id)">
+        <app-icon name="x" [size]="14" />
+      </button>
+    </div>
+  }
+</div>
+
+@if (confirm.pending(); as request) {
+  <div class="backdrop" animate.enter="enter-fade" animate.leave="leave-fade" (click)="confirm.settle(false)"></div>
+  <div class="confirm" role="alertdialog" aria-modal="true" animate.enter="confirm-enter" animate.leave="leave-fade">
+    <span class="confirm__icon" [class.danger]="request.danger">
+      <app-icon [name]="request.danger ? 'alert' : 'check-circle'" [size]="22" />
+    </span>
+    <h3>{{ request.title }}</h3>
+    <p>{{ request.message }}</p>
+    <div class="confirm__actions">
+      <button type="button" class="btn" (click)="confirm.settle(false)">إلغاء</button>
+      <button
+        type="button"
+        class="btn"
+        [class.btn--primary]="!request.danger"
+        [class.btn--danger]="request.danger"
+        (click)="confirm.settle(true)"
+      >
+        {{ request.confirmLabel ?? 'تأكيد' }}
+      </button>
+    </div>
+  </div>
+}

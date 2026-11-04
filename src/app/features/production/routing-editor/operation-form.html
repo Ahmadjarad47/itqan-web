@@ -1,0 +1,207 @@
+@let op = operation();
+
+<div class="cost-strip">
+  <div><span>العمالة</span><strong class="num">{{ cost().labor | money }}</strong></div>
+  <div><span>المستهلكات</span><strong class="num">{{ cost().consumables | money }}</strong></div>
+  <div><span>المقاول الفرعي</span><strong class="num">{{ cost().subcontract | money }}</strong></div>
+  <div class="total"><span>تكلفة العملية / وحدة</span><strong class="num">{{ cost().total | money }}</strong></div>
+</div>
+
+<h3 class="section-title"><app-icon name="route" [size]="15" /> تعريف العملية</h3>
+<div class="form-grid">
+  <label class="field">
+    <span class="field__label">تسلسل العملية (Op. Seq)</span>
+    <input class="input" type="number" min="1" [value]="op.sequence" (change)="setNumber('sequence', +$any($event.target).value)" />
+  </label>
+  <label class="field span-2">
+    <span class="field__label">اسم العملية</span>
+    <input class="input" [value]="op.name" (change)="update({ name: $any($event.target).value })" />
+  </label>
+  <label class="field span-full">
+    <span class="field__label">الوصف الفني</span>
+    <input class="input" [value]="op.description" placeholder="القطع بالليزر، ثني الصفائح Abkant، اللحام الغازي..." (change)="update({ description: $any($event.target).value })" />
+  </label>
+</div>
+
+<h3 class="section-title"><app-icon name="building" [size]="15" /> مكان التنفيذ والمحطة</h3>
+<div class="form-grid">
+  <div class="field span-full">
+    <span class="field__label">مكان التنفيذ</span>
+    <div class="segmented">
+      <button type="button" [class.active]="op.location === 'internal'" (click)="setLocation('internal')"><app-icon name="building" [size]="15" /> داخل المصنع</button>
+      <button type="button" [class.active]="op.location === 'external'" (click)="setLocation('external')"><app-icon name="external" [size]="15" /> خارجي (مقاول فرعي)</button>
+    </div>
+  </div>
+  @if (op.location === 'external') {
+    <label class="field span-2">
+      <span class="field__label">اسم المورد / الشركة المنفذة</span>
+      <input class="input" [value]="op.subcontractor" (change)="update({ subcontractor: $any($event.target).value })" />
+    </label>
+    <label class="field">
+      <span class="field__label">تكلفة التنفيذ الخارجي / وحدة ($)</span>
+      <input class="input" type="number" min="0" step="any" [value]="op.externalUnitCost" (change)="setNumber('externalUnitCost', +$any($event.target).value)" />
+    </label>
+  } @else {
+    <label class="field span-full">
+      <span class="field__label">الماكينة / المحطة</span>
+      <select class="select" (change)="setWorkstation($any($event.target).value)">
+        <option value="">— اختر المحطة من مسار المصنع —</option>
+        @for (ws of workstations.sorted(); track ws.id) {
+          <option [value]="ws.id" [selected]="ws.id === op.workstationId">{{ ws.code }} — {{ ws.name }} ({{ ws.hourlyRate }} $/ساعة)</option>
+        }
+      </select>
+    </label>
+  }
+</div>
+
+<h3 class="section-title"><app-icon name="git-merge" [size]="15" /> مدخلات العملية</h3>
+<div class="list">
+  @for (item of op.inputs; track $index) {
+    <div class="list__item">
+      <span class="badge badge--primary">{{ inputKindLabels[item.kind] }}</span>
+      <span class="list__label">{{ inputLabel(item.kind, item.refId) }}</span>
+      <span class="num muted">× {{ item.quantity | num }}</span>
+      <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="إزالة" (click)="removeInput($index)"><app-icon name="x" [size]="14" /></button>
+    </div>
+  } @empty {
+    <p class="subtle">لا توجد مدخلات — أضف المواد الخام أو المكونات الفرعية أو مخرجات عمليات أخرى.</p>
+  }
+  <div class="list__add">
+    <select class="select input--sm kind" (change)="newInputKind.set($any($event.target).value); newInputRef.set('')">
+      @for (k of inputKinds; track k) {
+        <option [value]="k" [selected]="k === newInputKind()">{{ inputKindLabels[k] }}</option>
+      }
+    </select>
+    <select class="select input--sm" [value]="newInputRef()" (change)="newInputRef.set($any($event.target).value)">
+      <option value="">اختر...</option>
+      @for (o of inputOptions()[newInputKind()]; track o.id) {
+        <option [value]="o.id">{{ o.label }}</option>
+      }
+    </select>
+    <input class="input input--sm qty" type="number" min="0" step="any" [value]="newInputQty()" (input)="newInputQty.set(+$any($event.target).value)" />
+    <button type="button" class="btn btn--sm" [disabled]="!newInputRef()" (click)="addInput()"><app-icon name="plus" [size]="14" /></button>
+  </div>
+</div>
+
+<h3 class="section-title"><app-icon name="calendar" [size]="15" /> التواريخ المخططة وساعات العمل</h3>
+<div class="form-grid">
+  <label class="field">
+    <span class="field__label">أقرب تاريخ بدء</span>
+    <input class="input" type="date" [value]="op.earliestStart" (change)="update({ earliestStart: $any($event.target).value })" />
+  </label>
+  <label class="field">
+    <span class="field__label">آخر تاريخ انتهاء</span>
+    <input class="input" type="date" [value]="op.latestFinish" [min]="op.earliestStart" (change)="update({ latestFinish: $any($event.target).value })" />
+  </label>
+  <label class="field">
+    <span class="field__label">ساعات العمل المخططة</span>
+    <input class="input" type="number" min="0" step="any" [value]="op.plannedHours" (change)="setNumber('plannedHours', +$any($event.target).value)" />
+  </label>
+  <label class="field">
+    <span class="field__label">ساعات العمل الفعلية</span>
+    <input class="input" type="number" min="0" step="any" [value]="op.actualHours" (change)="setNumber('actualHours', +$any($event.target).value)" />
+  </label>
+  <label class="field">
+    <span class="field__label">وقت الإعداد (دقيقة)</span>
+    <input class="input" type="number" min="0" [value]="op.setupMinutes" (change)="setNumber('setupMinutes', +$any($event.target).value)" />
+  </label>
+  <label class="field">
+    <span class="field__label">وقت معالجة القطعة (دقيقة)</span>
+    <input class="input" type="number" min="0" step="any" [value]="op.runMinutesPerUnit" (change)="setNumber('runMinutesPerUnit', +$any($event.target).value)" />
+  </label>
+</div>
+
+<h3 class="section-title"><app-icon name="package" [size]="15" /> المواد المستهلكة</h3>
+<div class="list">
+  @for (c of op.consumables; track c.materialId) {
+    @let m = inventory.find(c.materialId);
+    <div class="list__item">
+      <span class="list__label">{{ m?.name }}</span>
+      <span class="num muted">{{ c.quantity | num }} {{ m ? unitLabels[m.unit] : '' }} / وحدة</span>
+      <span class="num">{{ c.quantity * (m?.unitCost ?? 0) | money }}</span>
+      <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="إزالة" (click)="removeConsumable(c.materialId)"><app-icon name="x" [size]="14" /></button>
+    </div>
+  } @empty {
+    <p class="subtle">لا توجد مواد مستهلكة.</p>
+  }
+  <div class="list__add">
+    <select class="select input--sm" [value]="newConsumable()" (change)="newConsumable.set($any($event.target).value)">
+      <option value="">اختر مادة مستهلكة...</option>
+      @for (m of inventory.consumables(); track m.id) {
+        <option [value]="m.id">{{ m.name }} ({{ m.stock | num }} {{ unitLabels[m.unit] }})</option>
+      }
+    </select>
+    <input class="input input--sm qty" type="number" min="0" step="any" [value]="newConsumableQty()" (input)="newConsumableQty.set(+$any($event.target).value)" />
+    <button type="button" class="btn btn--sm" [disabled]="!newConsumable()" (click)="addConsumable()"><app-icon name="plus" [size]="14" /></button>
+  </div>
+  <p class="field__hint">
+    @if (op.consumablesPosted) {
+      <app-icon name="check" [size]="12" /> تم خصم المستهلكات من المستودع
+    } @else {
+      تُخصم من المستودع تلقائياً (× {{ lot() | num }} وحدة) عند إنجاز العملية
+    }
+  </p>
+</div>
+
+<h3 class="section-title"><app-icon name="trending" [size]="15" /> التقدم وتتبع الإنتاج</h3>
+<div class="form-grid">
+  <div class="field span-full checks">
+    <label class="checkbox"><input type="checkbox" [checked]="op.completed" (change)="setCompleted($any($event.target).checked)" /> تم تنفيذ العملية</label>
+    <label class="checkbox"><input type="checkbox" [checked]="op.onTime" (change)="setOnTime($any($event.target).checked)" /> نُفذت في الوقت المحدد</label>
+  </div>
+  @if (!op.onTime) {
+    <label class="field">
+      <span class="field__label">التاريخ الفعلي</span>
+      <input class="input" type="date" [value]="op.actualFinish ?? ''" (change)="update({ actualFinish: $any($event.target).value || null })" />
+    </label>
+    <label class="field span-2">
+      <span class="field__label">سبب التأخير</span>
+      <input class="input" [value]="op.delayReason" (change)="update({ delayReason: $any($event.target).value })" />
+    </label>
+  }
+  <div class="field">
+    <span class="field__label">أساس احتساب الإنجاز</span>
+    <div class="segmented">
+      <button type="button" [class.active]="op.progressMode === 'percent'" (click)="setProgressMode('percent')">نسبة مئوية</button>
+      <button type="button" [class.active]="op.progressMode === 'quantity'" (click)="setProgressMode('quantity')">كمية</button>
+    </div>
+  </div>
+  @if (op.progressMode === 'percent') {
+    <label class="field span-2">
+      <span class="field__label">نسبة الإكمال: <strong class="num">{{ op.progressPercent }}%</strong></span>
+      <input type="range" min="0" max="100" step="5" [value]="op.progressPercent" [disabled]="op.completed" (input)="setProgress(+$any($event.target).value)" />
+    </label>
+  } @else {
+    <label class="field span-2">
+      <span class="field__label">الكمية المكتملة من أصل {{ lot() | num }}</span>
+      <input class="input" type="number" min="0" [max]="lot()" [value]="op.completedQuantity" (change)="setNumber('completedQuantity', +$any($event.target).value)" />
+    </label>
+  }
+</div>
+
+<h3 class="section-title"><app-icon name="shield" [size]="15" /> مراقبة الجودة بعد العملية</h3>
+<div class="qc" [class]="'qc qc--' + op.qcStatus">
+  <div class="row">
+    <span class="badge" [class.badge--success]="op.qcStatus === 'passed'" [class.badge--danger]="op.qcStatus === 'rejected'">
+      {{ op.qcStatus === 'passed' ? 'مقبول' : op.qcStatus === 'rejected' ? 'مرفوض' : 'بانتظار الفحص' }}
+    </span>
+    @if (op.qcStatus === 'rejected' && op.reworkSequence) {
+      <span class="subtle">العودة إلى العملية {{ op.reworkSequence }}</span>
+    }
+  </div>
+  <input class="input input--sm" placeholder="ملاحظة الفحص" [value]="op.qcNote" (change)="update({ qcNote: $any($event.target).value })" />
+  <div class="qc__actions">
+    <button type="button" class="btn btn--sm btn--primary" (click)="passQc()"><app-icon name="check" [size]="14" /> قبول</button>
+    <select class="select input--sm" (change)="reworkTo.set(+$any($event.target).value)">
+      @for (s of siblings(); track s.id) {
+        @if (s.sequence <= op.sequence) {
+          <option [value]="s.sequence" [selected]="s.sequence === op.sequence">العودة إلى {{ s.sequence }} — {{ s.name }}</option>
+        }
+      }
+    </select>
+    <button type="button" class="btn btn--sm btn--danger" (click)="rejectQc()"><app-icon name="undo" [size]="14" /> رفض وإرجاع</button>
+  </div>
+</div>
+
+<h3 class="section-title"><app-icon name="clipboard" [size]="15" /> التعليمات الخاصة</h3>
+<textarea class="textarea" [value]="op.instructions" placeholder="ملاحظات خاصة بالعملية..." (change)="update({ instructions: $any($event.target).value })"></textarea>
