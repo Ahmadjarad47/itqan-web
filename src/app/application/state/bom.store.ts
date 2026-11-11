@@ -5,13 +5,17 @@ import { BomTree, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 export type NewBomNode = Pick<BomNode, 'name' | 'discipline' | 'quantity' | 'unit'> &
-  Partial<Pick<BomNode, 'description' | 'code' | 'image'>>;
+  Partial<Pick<BomNode, 'description' | 'code' | 'image' | 'ownerId'>>;
 
 @Injectable({ providedIn: 'root' })
 export class BomStore extends EntityStore<BomNode> {
   protected readonly repository = inject(BomNodeRepository);
 
   readonly tree = computed(() => new BomTree(this.all()));
+
+  protected override normalize(node: BomNode): BomNode {
+    return { ...node, ownerId: node.ownerId ?? null };
+  }
 
   addChild(parentId: EntityId, data: NewBomNode): BomNode {
     const parent = this.find(parentId)!;
@@ -23,6 +27,7 @@ export class BomStore extends EntityStore<BomNode> {
       name: data.name,
       description: data.description ?? '',
       discipline: data.discipline,
+      ownerId: data.ownerId ?? null,
       quantity: data.quantity,
       unit: data.unit,
       image: data.image ?? null,
@@ -43,6 +48,7 @@ export class BomStore extends EntityStore<BomNode> {
       name: data.name,
       description: data.description ?? '',
       discipline: data.discipline,
+      ownerId: data.ownerId ?? null,
       quantity: 1,
       unit: 'pcs',
       image: data.image ?? null,

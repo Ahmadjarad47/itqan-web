@@ -44,7 +44,9 @@ export function operationUnitCost(
   const labor =
     operation.location === 'internal'
       ? ((operation.setupMinutes / 60) * rate) / lot + (operation.runMinutesPerUnit / 60) * rate
-      : 0;
+      : operation.location === 'company'
+        ? (operation.plannedHours * (operation.companyHourlyRate || 0)) / lot
+        : 0;
   const consumables = operation.consumables.reduce(
     (sum, usage) => sum + usage.quantity * (materials.get(usage.materialId)?.unitCost ?? 0),
     0,

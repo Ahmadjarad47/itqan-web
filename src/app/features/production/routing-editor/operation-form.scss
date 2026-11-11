@@ -119,3 +119,10 @@ input[type='range'] {
   flex-direction: column;
   gap: 6px;
 }
+
+.duration {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  font-size: 15px;
+}

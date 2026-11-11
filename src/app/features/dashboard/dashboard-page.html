@@ -140,6 +140,8 @@
                   }
                   @if (row.op.location === 'external') {
                     <span class="badge badge--info">خارجية</span>
+                  } @else if (row.op.location === 'company') {
+                    <span class="badge badge--accent">داخل الشركة</span>
                   }
                 </div>
               </td>

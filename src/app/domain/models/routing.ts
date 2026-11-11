@@ -8,7 +8,23 @@ export interface Workstation extends Entity {
   readonly departmentId: EntityId;
 }
 
-export type OperationLocation = 'internal' | 'external';
+/** internal: on the factory floor · company: elsewhere inside the company · external: subcontractor. */
+export type OperationLocation = 'internal' | 'company' | 'external';
+
+export interface LocationInfo {
+  readonly label: string;
+  readonly short: string;
+  readonly icon: string;
+  readonly hint: string;
+}
+
+export const OPERATION_LOCATIONS: Record<OperationLocation, LocationInfo> = {
+  internal: { label: 'داخل المصنع', short: 'المصنع', icon: 'factory', hint: 'تُنفذ على محطة / ماكينة من مسار المصنع' },
+  company: { label: 'داخل الشركة', short: 'الشركة', icon: 'building', hint: 'تُنفذ في قسم آخر من الشركة خارج خط الإنتاج' },
+  external: { label: 'مقاول خارجي', short: 'خارجي', icon: 'external', hint: 'تُسلَّم القطعة لمقاول فرعي ويُتابع موعد استلامها' },
+};
+
+export const OPERATION_LOCATION_KEYS = Object.keys(OPERATION_LOCATIONS) as OperationLocation[];
 
 export type OperationInputKind = 'material' | 'component' | 'operation';
 
@@ -50,6 +66,10 @@ export interface RoutingOperation extends Entity, HasCustomFields {
   /** Cost per unit for subcontracted operations. */
   readonly externalUnitCost: number;
   readonly workstationId: EntityId | null;
+  /** Executing department for operations done inside the company (outside the factory floor). */
+  readonly departmentId: EntityId | null;
+  /** Hourly labour rate for in-company operations. */
+  readonly companyHourlyRate: number;
   readonly inputs: readonly OperationInput[];
   readonly earliestStart: IsoDate;
   readonly latestFinish: IsoDate;

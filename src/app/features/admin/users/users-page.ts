@@ -10,10 +10,11 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { Icon } from '@shared/ui/icon/icon';
 import { Modal } from '@shared/ui/modal/modal';
 import { PageHeader } from '@shared/ui/page-header/page-header';
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-users-page',
-  imports: [ReactiveFormsModule, PageHeader, Icon, Modal, Avatar, EmptyState],
+  imports: [ReactiveFormsModule, FormDraft, PageHeader, Icon, Modal, Avatar, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './users-page.html',
   styleUrl: './users-page.scss',

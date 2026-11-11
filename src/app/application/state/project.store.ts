@@ -7,6 +7,10 @@ import { EntityStore } from './entity-store';
 export class ProjectStore extends EntityStore<Project> {
   protected readonly repository = inject(ProjectRepository);
 
+  protected override normalize(project: Project): Project {
+    return { ...project, programId: project.programId ?? null };
+  }
+
   readonly sorted = computed(() => [...this.all()].sort((a, b) => a.code.localeCompare(b.code)));
 
   create(project: Project): Project {

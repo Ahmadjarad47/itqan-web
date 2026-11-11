@@ -158,7 +158,7 @@ export class GanttPage {
       span: diffDays(op.earliestStart, op.latestFinish) + 1,
       state,
       progress: op.completed ? 100 : op.progressPercent,
-      label: `${op.sequence} — ${op.name} · ${op.location === 'external' ? op.subcontractor : (ws?.name ?? '')} · ${op.progressPercent}%`,
+      label: `${op.sequence} — ${op.name} · ${op.location === 'external' ? op.subcontractor : op.location === 'company' ? 'داخل الشركة' : (ws?.name ?? '')} · ${op.progressPercent}%`,
     };
   }
 

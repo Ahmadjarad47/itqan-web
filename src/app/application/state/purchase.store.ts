@@ -6,13 +6,23 @@ import {
   PurchaseRequest,
   PurchaseStage,
   PurchaseStageKey,
+  SupplierContact,
   SupplierQuote,
 } from '@domain/models';
 import { PurchaseRepository } from '@domain/ports/repositories';
 import { createPurchaseStages, DEFAULT_CRITERIA, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
-export type NewPurchase = Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId' | 'quantity' | 'unit' | 'priority'>;
+const EMPTY_QUOTE_DETAILS: Omit<SupplierQuote, 'id' | 'supplierId' | 'unitPrice' | 'leadTimeDays' | 'note'> = {
+  receivedAt: null,
+  channel: 'email',
+  shippingCost: 0,
+  paymentTerms: '',
+  warranty: '',
+  validUntil: null,
+};
+
+export type NewPurchase =Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId' | 'quantity' | 'unit' | 'priority'>;
 
 @Injectable({ providedIn: 'root' })
 export class PurchaseStore extends EntityStore<PurchaseRequest> {
@@ -35,6 +45,7 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
       supplierId: null,
       unitPrice: null,
       stages: createPurchaseStages(),
+      contacts: [],
       quotes: [],
       mcdm: { criteria: [...DEFAULT_CRITERIA], scores: {} },
       eta: null,
@@ -74,8 +85,47 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
     }));
   }
 
+  protected override normalize(request: PurchaseRequest): PurchaseRequest {
+    return {
+      ...request,
+      contacts: request.contacts ?? [],
+      stages: request.stages.map((stage) => ({ ...stage, startDate: stage.startDate ?? null })),
+      quotes: request.quotes.map((quote) => ({ ...EMPTY_QUOTE_DETAILS, ...quote })),
+    };
+  }
+
+  /** Records the quote and marks the supplier's RFQ contact as replied. */
   addQuote(id: EntityId, quote: Omit<SupplierQuote, 'id'>): void {
-    this.modify(id, (request) => ({ ...request, quotes: [...request.quotes, { ...quote, id: newId('q') }] }));
+    this.modify(id, (request) => ({
+      ...request,
+      quotes: [...request.quotes, { ...quote, id: newId('q') }],
+      contacts: request.contacts.map((c) => (c.supplierId === quote.supplierId ? { ...c, replied: true } : c)),
+    }));
+  }
+
+  updateQuote(id: EntityId, quoteId: EntityId, changes: Partial<Omit<SupplierQuote, 'id' | 'supplierId'>>): void {
+    this.modify(id, (request) => ({
+      ...request,
+      quotes: request.quotes.map((q) => (q.id === quoteId ? { ...q, ...changes } : q)),
+      ...(changes.unitPrice !== undefined && request.quotes.find((q) => q.id === quoteId)?.supplierId === request.supplierId
+        ? { unitPrice: changes.unitPrice }
+        : {}),
+    }));
+  }
+
+  addContact(id: EntityId, contact: Omit<SupplierContact, 'id'>): void {
+    this.modify(id, (request) => ({ ...request, contacts: [...request.contacts, { ...contact, id: newId('c') }] }));
+  }
+
+  updateContact(id: EntityId, contactId: EntityId, changes: Partial<Omit<SupplierContact, 'id'>>): void {
+    this.modify(id, (request) => ({
+      ...request,
+      contacts: request.contacts.map((c) => (c.id === contactId ? { ...c, ...changes } : c)),
+    }));
+  }
+
+  removeContact(id: EntityId, contactId: EntityId): void {
+    this.modify(id, (request) => ({ ...request, contacts: request.contacts.filter((c) => c.id !== contactId) }));
   }
 
   removeQuote(id: EntityId, quoteId: EntityId): void {

@@ -15,6 +15,10 @@ export class WorkstationStore extends EntityStore<Workstation> {
 export class RoutingStore extends EntityStore<RoutingOperation> {
   protected readonly repository = inject(OperationRepository);
 
+  protected override normalize(op: RoutingOperation): RoutingOperation {
+    return { ...op, departmentId: op.departmentId ?? null, companyHourlyRate: op.companyHourlyRate ?? 0 };
+  }
+
   readonly byNode = computed(() => {
     const map = new Map<EntityId, RoutingOperation[]>();
     for (const op of this.all()) {
@@ -45,6 +49,8 @@ export class RoutingStore extends EntityStore<RoutingOperation> {
       subcontractor: '',
       externalUnitCost: 0,
       workstationId: null,
+      departmentId: null,
+      companyHourlyRate: 0,
       inputs: [],
       earliestStart: start,
       latestFinish: addDays(start, 2),

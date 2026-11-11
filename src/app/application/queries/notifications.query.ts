@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { AuthorizationService } from '../auth/authorization.service';
-import { etaDelayDays, isStageDone, todayIso } from '@domain/rules';
+import { etaDelayDays, isStageDone, todayIso, unreadMessages } from '@domain/rules';
+import { TaskViewQuery } from './task-view.query';
 import { BomStore } from '../state/bom.store';
 import { InventoryStore } from '../state/inventory.store';
 import { PurchaseStore } from '../state/purchase.store';
@@ -27,6 +28,7 @@ export class NotificationsQuery {
   private readonly routing = inject(RoutingStore);
   private readonly inventory = inject(InventoryStore);
   private readonly bom = inject(BomStore);
+  private readonly taskViews = inject(TaskViewQuery);
 
   readonly items = computed<AppNotification[]>(() => {
     const today = todayIso();
@@ -41,9 +43,25 @@ export class NotificationsQuery {
           icon: 'clipboard',
           tone: 'info',
           title: `مهمة جديدة ${task.number}`,
-          text: `${this.routing.find(task.operationId)?.name ?? ''} — ${this.bom.find(task.nodeId)?.name ?? ''}`,
+          text: `${this.taskViews.view(task).title} — ${this.taskViews.view(task).context}`,
           link: '/tasks/mine',
         }));
+
+    // Unread chat messages, for the assignee and for the manager who follows the task.
+    const userId = this.session.userId();
+    const chats: AppNotification[] = this.tasks
+      .active()
+      .filter((task) => task.assigneeId === userId || task.createdById === userId)
+      .map((task) => ({ task, unread: unreadMessages(task, userId) }))
+      .filter(({ unread }) => unread > 0)
+      .map(({ task, unread }) => ({
+        id: `chat-${task.id}`,
+        icon: 'message',
+        tone: 'info',
+        title: `${unread} رسائل جديدة — ${task.number}`,
+        text: task.messages.at(-1)?.text ?? '',
+        link: task.assigneeId === userId ? '/tasks/mine' : '/tasks/manage',
+      }));
 
     const rejected: AppNotification[] = !this.auth.can('tasks.manage')
       ? []
@@ -113,6 +131,6 @@ export class NotificationsQuery {
       link: '/inventory',
     }));
 
-    return [...own, ...rejected, ...qcFailed, ...delayedPurchases, ...lateOps, ...lowStock];
+    return [...own, ...chats, ...rejected, ...qcFailed, ...delayedPurchases, ...lateOps, ...lowStock];
   });
 }

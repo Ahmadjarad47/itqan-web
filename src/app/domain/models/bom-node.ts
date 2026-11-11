@@ -27,6 +27,8 @@ export interface BomNode extends Entity, HasCustomFields {
   readonly name: string;
   readonly description: string;
   readonly discipline: Discipline;
+  /** Person responsible for the component (engineer / owner of the item). */
+  readonly ownerId: EntityId | null;
   /** Usage quantity inside the parent (multiplier). */
   readonly quantity: number;
   readonly unit: Unit;

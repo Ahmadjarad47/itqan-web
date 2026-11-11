@@ -79,6 +79,9 @@
                 @if (row.op.location === 'external') {
                   <span class="badge badge--info"><app-icon name="external" [size]="11" /> خارجي</span>
                   <div class="subtle">{{ row.op.subcontractor }}</div>
+                } @else if (row.op.location === 'company') {
+                  <span class="badge badge--accent"><app-icon name="building" [size]="11" /> داخل الشركة</span>
+                  <div class="subtle">{{ departments.find(row.op.departmentId)?.name ?? '—' }}</div>
                 } @else {
                   <span class="ws">{{ row.workstation?.name ?? '—' }}</span>
                   <div class="subtle ltr">{{ row.workstation?.code }}</div>

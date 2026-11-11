@@ -1,9 +1,9 @@
 import { BomNode, CustomFieldDefinition, formatCustomValue, Material, missingRequiredFields, PurchaseRequest, RoutingOperation, Workstation } from '../models';
 import { BomTree } from './bom-tree';
-import { rollUpCost } from './cost-rollup';
+import { operationUnitCost, rollUpCost } from './cost-rollup';
 import { evaluateMcdm } from './mcdm';
 import { rollUpProgress } from './progress';
-import { canToggleStage, createPurchaseStages, currentStageIndex, etaDelayDays } from './purchase-flow';
+import { canToggleStage, createPurchaseStages, currentStageIndex, etaDelayDays, isContactOverdue, researchDays } from './purchase-flow';
 
 const node = (id: string, parentId: string | null, extra: Partial<BomNode> = {}): BomNode => ({
   id,
@@ -13,6 +13,7 @@ const node = (id: string, parentId: string | null, extra: Partial<BomNode> = {})
   name: id,
   description: '',
   discipline: 'mechanical',
+  ownerId: null,
   quantity: 1,
   unit: 'pcs',
   image: null,
@@ -34,6 +35,8 @@ const op = (nodeId: string, extra: Partial<RoutingOperation> = {}): RoutingOpera
   subcontractor: '',
   externalUnitCost: 0,
   workstationId: 'ws',
+  departmentId: null,
+  companyHourlyRate: 0,
   inputs: [],
   earliestStart: '2026-01-01',
   latestFinish: '2026-01-02',
@@ -108,6 +111,18 @@ describe('rollUpCost', () => {
     expect(root.unitCost).toBe(140 + 15);
   });
 
+  it('costs labour according to where the operation is executed', () => {
+    const materials = new Map([['m', steel]]);
+    // Factory floor: setup 60′ at 60/h over a lot of 2 = 30, plus run 30′ = 30.
+    expect(operationUnitCost(op('x'), workstation, materials, 2).labor).toBe(60);
+    // Inside the company: planned hours × hourly rate, spread over the lot.
+    expect(operationUnitCost(op('x', { location: 'company', plannedHours: 4, companyHourlyRate: 20 }), workstation, materials, 2).labor).toBe(40);
+    // Subcontractor: no internal labour, only the external unit cost.
+    const external = operationUnitCost(op('x', { location: 'external', externalUnitCost: 12 }), workstation, materials, 2);
+    expect(external.labor).toBe(0);
+    expect(external.subcontract).toBe(12);
+  });
+
   it('propagates a raw material price change up to level 0', () => {
     expect(rollUpCost('root', context(3)).unitCost - rollUpCost('root', context(2)).unitCost).toBe(10);
   });
@@ -140,6 +155,7 @@ describe('purchase flow', () => {
     supplierId: null,
     unitPrice: null,
     stages: createPurchaseStages().map((s, i) => ({ ...s, done: i < done })),
+    contacts: [],
     quotes: [],
     mcdm: { criteria: [], scores: {} },
     eta: null,
@@ -152,8 +168,30 @@ describe('purchase flow', () => {
 
   it('advances strictly in order', () => {
     expect(canToggleStage(request(0), 'marketResearch').allowed).toBe(false);
-    expect(canToggleStage(request(1), 'marketResearch').allowed).toBe(true);
     expect(currentStageIndex(request(3))).toBe(3);
+  });
+
+  it('requires a research start date and measures the search duration', () => {
+    const open = request(1);
+    expect(canToggleStage(open, 'marketResearch').allowed).toBe(false);
+    const started = request(1, {
+      stages: open.stages.map((s) => (s.key === 'marketResearch' ? { ...s, startDate: '2026-01-01' } : s)),
+    });
+    expect(canToggleStage(started, 'marketResearch').allowed).toBe(true);
+    expect(researchDays(started, '2026-01-06')).toBe(5);
+    const finished = request(2, {
+      stages: started.stages.map((s) => (s.key === 'marketResearch' ? { ...s, done: true, date: '2026-01-04' } : s)),
+    });
+    expect(researchDays(finished, '2026-02-01')).toBe(3);
+    expect(researchDays(request(0), '2026-01-06')).toBeNull();
+  });
+
+  it('requires a supplier contact before closing the RFQ stage', () => {
+    expect(canToggleStage(request(2), 'rfqSent').allowed).toBe(false);
+    const contact = { id: 'c', supplierId: 's', contactedAt: '2026-01-01', channel: 'email' as const, expectedReplyDate: '2026-01-03', note: '', replied: false };
+    expect(canToggleStage(request(2, { contacts: [contact] }), 'rfqSent').allowed).toBe(true);
+    expect(isContactOverdue(contact, '2026-01-05')).toBe(true);
+    expect(isContactOverdue({ ...contact, replied: true }, '2026-01-05')).toBe(false);
   });
 
   it('blocks warehouse receipt when quality failed', () => {
@@ -167,11 +205,23 @@ describe('purchase flow', () => {
   });
 });
 
+const QUOTE = {
+  unitPrice: 1,
+  leadTimeDays: 1,
+  note: '',
+  receivedAt: null,
+  channel: 'email' as const,
+  shippingCost: 0,
+  paymentTerms: '',
+  warranty: '',
+  validUntil: null,
+};
+
 describe('evaluateMcdm', () => {
   it('ranks quotes by weighted score', () => {
     const quotes = [
-      { id: 'q1', supplierId: 's1', unitPrice: 1, leadTimeDays: 1, note: '' },
-      { id: 'q2', supplierId: 's2', unitPrice: 1, leadTimeDays: 1, note: '' },
+      { ...QUOTE, id: 'q1', supplierId: 's1' },
+      { ...QUOTE, id: 'q2', supplierId: 's2' },
     ];
     const result = evaluateMcdm(
       {

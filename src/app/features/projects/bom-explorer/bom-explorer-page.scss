@@ -278,3 +278,31 @@
   }
 }
 
+
+// Item shortcuts revealed when pointing at the card (always visible on touch screens).
+.bom-card__actions {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 0.25s var(--ease),
+    opacity 0.2s;
+}
+
+.bom-card:hover .bom-card__actions,
+.bom-card:focus-within .bom-card__actions {
+  max-height: 120px;
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .bom-card__actions {
+    max-height: none;
+    opacity: 1;
+  }
+}
+
+.models-panel {
+  display: block;
+  margin-bottom: 24px;
+}

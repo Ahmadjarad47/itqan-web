@@ -1,6 +1,7 @@
 @let item = node();
 
 <div class="branch">
+  <div class="node" [class.node--open]="menuOpen()">
   <div
     [class]="'card card--' + (item.decision ?? 'none')"
     [class.card--root]="root()"
@@ -8,8 +9,11 @@
     tabindex="0"
     role="button"
     [attr.aria-label]="item.name"
-    (click)="opened.emit(item.id)"
-    (keydown.enter)="opened.emit(item.id)"
+    [attr.aria-expanded]="menuOpen()"
+    (click)="toggleMenu()"
+    (dblclick)="opened.emit(item.id)"
+    (keydown.enter)="toggleMenu()"
+    (keydown.escape)="menuOpen.set(false)"
   >
     <div class="card__top">
       <span class="lvl num">L{{ level() }}</span>
@@ -35,6 +39,9 @@
       </span>
       <span class="num cost">{{ cost() | money }}</span>
     </div>
+    @if (owner(); as o) {
+      <div class="card__owner" [title]="'الشخص المعني: ' + o"><app-icon name="user-check" [size]="12" /> {{ o }}</div>
+    }
     <div class="card__progress" [title]="progress() + '%'">
       <span [style.width.%]="progress()"></span>
     </div>
@@ -48,6 +55,10 @@
       </button>
     }
   </div>
+  <div class="menu">
+    <app-node-actions [node]="item" (tasks)="menuOpen.set(false); tasksRequested.emit($event)" />
+  </div>
+  </div>
 
   @if (expanded() && children().length) {
     <div class="children" animate.enter="children-enter">
@@ -59,6 +70,7 @@
             [expandedIds]="expandedIds()"
             (toggled)="toggled.emit($event)"
             (opened)="opened.emit($event)"
+            (tasksRequested)="tasksRequested.emit($event)"
           />
         </div>
       }

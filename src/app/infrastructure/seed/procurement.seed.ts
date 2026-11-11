@@ -1,4 +1,4 @@
-import { BomNode, EntityId, IsoDate, PurchasePriority, PurchaseRequest, SupplierQuote } from '@domain/models';
+import { BomNode, ContactChannel, EntityId, IsoDate, PurchasePriority, PurchaseRequest, SupplierContact, SupplierQuote } from '@domain/models';
 import { addDays, createPurchaseStages, DEFAULT_CRITERIA } from '@domain/rules';
 import { nodeId } from './projects.seed';
 
@@ -35,6 +35,9 @@ const SPECS: Record<string, PurchaseSpec> = {
   'CV-3': { done: 0 },
 };
 
+const CHANNELS: readonly ContactChannel[] = ['email', 'phone', 'whatsapp'];
+const TERMS = ['30% مقدم والباقي عند التسليم', 'نقداً عند الاستلام', 'آجل 30 يوم'];
+
 const DEFAULT_SCORES = [
   { price: 8, quality: 8, delivery: 7, reliability: 9 },
   { price: 7, quality: 7, delivery: 8, reliability: 6 },
@@ -49,15 +52,34 @@ function buildRequest(
   today: IsoDate,
 ): PurchaseRequest {
   const start = addDays(today, -(spec.done * 3 + 2));
-  const stages = createPurchaseStages().map((stage, index) =>
-    index < spec.done ? { ...stage, done: true, date: addDays(start, index * 3) } : stage,
-  );
+  const researchDays = 2 + (spec.quotes?.length ?? 1) * 2;
+  const stages = createPurchaseStages().map((stage, index) => {
+    const date = addDays(start, index * 3);
+    const startDate = stage.key === 'marketResearch' && index <= spec.done ? addDays(date, -researchDays) : null;
+    return index < spec.done ? { ...stage, done: true, date, startDate } : { ...stage, startDate };
+  });
+  const contactedAt = addDays(start, 6);
+  const contacts: SupplierContact[] = (spec.done >= 2 ? (spec.quotes ?? []) : []).map(([supplierId], index) => ({
+    id: `${id}-c${index + 1}`,
+    supplierId,
+    contactedAt,
+    channel: CHANNELS[index % CHANNELS.length],
+    expectedReplyDate: addDays(contactedAt, 3 + index),
+    note: index === 0 ? 'أُرسلت المخططات الفنية مع طلب التسعير' : '',
+    replied: spec.done >= 3,
+  }));
   const quotes: SupplierQuote[] = (spec.done >= 3 ? (spec.quotes ?? []) : []).map(([supplierId, unitPrice, leadTimeDays], index) => ({
     id: `${id}-q${index + 1}`,
     supplierId,
     unitPrice,
     leadTimeDays,
     note: '',
+    receivedAt: addDays(contactedAt, 2 + index),
+    channel: CHANNELS[index % CHANNELS.length],
+    shippingCost: index * 40,
+    paymentTerms: TERMS[index % TERMS.length],
+    warranty: index % 2 ? '6 أشهر' : '12 شهراً',
+    validUntil: addDays(today, 20 + index * 5),
   }));
   const scores: Record<EntityId, Record<EntityId, number>> = {};
   if (spec.done >= 4) {
@@ -73,6 +95,7 @@ function buildRequest(
     supplierId: selected?.supplierId ?? null,
     unitPrice: selected?.unitPrice ?? null,
     stages,
+    contacts,
     quotes,
     mcdm: { criteria: [...DEFAULT_CRITERIA], scores },
     eta: spec.done >= 6 ? addDays(today, spec.etaOffset ?? 10) : null,

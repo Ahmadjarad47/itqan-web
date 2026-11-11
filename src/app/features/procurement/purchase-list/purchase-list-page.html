@@ -52,6 +52,7 @@
           <th>الطلب</th>
           <th>المشروع</th>
           <th>المورد</th>
+          <th>مدة البحث</th>
           <th>الكمية</th>
           <th>الأولوية</th>
           <th>المرحلة الحالية</th>
@@ -76,6 +77,13 @@
               }
             </td>
             <td>{{ row.supplier?.name ?? '—' }}</td>
+            <td class="num nowrap">
+              @if (row.research !== null) {
+                <span class="badge" [class.badge--danger]="row.research > 14" [class.badge--warning]="row.research > 7 && row.research <= 14">{{ row.research }} يوم</span>
+              } @else {
+                <span class="subtle">—</span>
+              }
+            </td>
             <td class="num">{{ row.request.quantity | num }} {{ unitLabels[row.request.unit] }}</td>
             <td>
               <span
@@ -106,7 +114,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="8"><app-empty-state icon="cart" title="لا توجد طلبات مطابقة" text="غيّر المرشحات أو افتح سجل شراء مستقل." /></td>
+            <td colspan="9"><app-empty-state icon="cart" title="لا توجد طلبات مطابقة" text="غيّر المرشحات أو افتح سجل شراء مستقل." /></td>
           </tr>
         }
       </tbody>
@@ -115,7 +123,7 @@
 </section>
 
 <app-modal [(open)]="creating" title="سجل شراء مستقل" subtitle="شراء مباشر غير مرتبط بأي مشروع" width="520px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="standalone-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="standalone-form" [appDraft]="'purchase:standalone'" [draftActive]="creating()">
     <label class="field span-full">
       <span class="field__label">البند المطلوب *</span>
       <input class="input" formControlName="title" placeholder="مثال: زيت هيدروليك ISO VG46" />

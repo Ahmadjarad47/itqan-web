@@ -5,7 +5,9 @@ import { SessionStore } from '@application/state/session.store';
 import { TaskStore } from '@application/state/task.store';
 import { TaskWorkflowUseCase } from '@application/use-cases/task-workflow.use-case';
 import { ToastService } from '@core/feedback/toast.service';
-import { EntityId, REJECT_REASON_LABELS, RejectReason, TaskStatus } from '@domain/models';
+import { EntityId, REJECT_REASON_LABELS, RejectReason, TaskStatus, WorkTask } from '@domain/models';
+import { unreadMessages } from '@domain/rules';
+import { TaskChat } from '../shared/task-chat';
 import { ArDatePipe, NumPipe, RelativeDaysPipe } from '@shared/pipes/format.pipes';
 import { Avatar } from '@shared/ui/avatar/avatar';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -29,7 +31,7 @@ const COLUMNS: readonly Column[] = [
 
 @Component({
   selector: 'app-my-tasks-page',
-  imports: [PageHeader, Icon, Avatar, Modal, EmptyState, ProgressBar, ArDatePipe, NumPipe, RelativeDaysPipe],
+  imports: [PageHeader, Icon, Avatar, Modal, EmptyState, ProgressBar, TaskChat, ArDatePipe, NumPipe, RelativeDaysPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './my-tasks-page.html',
   styleUrl: './my-tasks-page.scss',
@@ -70,6 +72,23 @@ export class MyTasksPage {
     return map;
   });
   protected readonly progressTask = computed(() => this.views.view(this.tasks.find(this.progressId())!));
+
+  protected readonly chatId = signal<EntityId | null>(null);
+  protected readonly chatOpen = signal(false);
+  protected readonly chatView = computed(() => {
+    const task = this.tasks.find(this.chatId());
+    return task ? this.views.view(task) : undefined;
+  });
+
+  protected openChat(id: EntityId): void {
+    this.markSeen(id);
+    this.chatId.set(id);
+    this.chatOpen.set(true);
+  }
+
+  protected unread(task: WorkTask): number {
+    return unreadMessages(task, this.session.userId());
+  }
 
   protected markSeen(id: EntityId): void {
     this.tasks.markSeen(id);

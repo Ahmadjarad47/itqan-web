@@ -41,6 +41,7 @@ export class BomDiagram {
   readonly rootId = input.required<EntityId>();
   readonly level = input(0);
   readonly opened = output<EntityId>();
+  readonly tasksRequested = output<EntityId>();
 
   private readonly viewport = viewChild.required<ElementRef<HTMLElement>>('viewport');
 
@@ -95,7 +96,7 @@ export class BomDiagram {
   }
 
   protected startDrag(event: PointerEvent): void {
-    if ((event.target as HTMLElement).closest('.card, button')) return;
+    if ((event.target as HTMLElement).closest('.card, button, a, .menu')) return;
     const el = this.viewport().nativeElement;
     this.drag = { x: event.clientX, y: event.clientY, left: el.scrollLeft, top: el.scrollTop };
     this.dragging.set(true);

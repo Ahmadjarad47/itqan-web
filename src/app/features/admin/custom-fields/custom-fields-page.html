@@ -76,7 +76,7 @@
 </div>
 
 <app-modal [(open)]="dialogOpen" [title]="editingId() ? 'تعديل الحقل' : 'حقل جديد'" [subtitle]="entityInfo[entity()].label" width="560px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="field-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="field-form" [appDraft]="'field:' + entity() + ':' + (editingId() ?? 'new')" [draftActive]="dialogOpen()">
     <label class="field span-full">
       <span class="field__label">اسم الحقل *</span>
       <input class="input" formControlName="label" placeholder="مثال: رقم الرسم الهندسي" />

@@ -253,3 +253,38 @@
     transform: translateY(-2px);
   }
 }
+
+.kind {
+  font-size: 10.5px;
+
+  &--operation {
+    color: var(--primary);
+    background: var(--primary-soft);
+  }
+
+  &--purchase {
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+  }
+
+  &--custom {
+    color: var(--info);
+    background: var(--info-soft);
+  }
+}
+
+.task__desc {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.chat-btn {
+  margin-inline-end: auto;
+
+  &--new {
+    color: var(--primary);
+    font-weight: 700;
+  }
+}

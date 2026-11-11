@@ -8,6 +8,7 @@ import { InventoryStore } from '@application/state/inventory.store';
 import { ProjectStore } from '@application/state/project.store';
 import { PurchaseStore } from '@application/state/purchase.store';
 import { RoutingStore } from '@application/state/routing.store';
+import { EmployeeStore } from '@application/state/organization.store';
 import { ProjectSetupUseCase } from '@application/use-cases/project-setup.use-case';
 import { SourcingUseCase } from '@application/use-cases/sourcing.use-case';
 import { CanDirective } from '@core/auth/can.directive';
@@ -82,6 +83,7 @@ export class ItemDetailPage {
   private readonly auth = inject(AuthorizationService);
   private readonly fieldDefinitions = inject(CustomFieldStore);
   protected readonly inventory = inject(InventoryStore);
+  protected readonly employees = inject(EmployeeStore);
   protected readonly insights = inject(ProjectInsightsQuery);
 
   readonly projectId = input.required<EntityId>();

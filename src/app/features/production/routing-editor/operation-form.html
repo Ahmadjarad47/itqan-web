@@ -30,18 +30,36 @@
   <div class="field span-full">
     <span class="field__label">مكان التنفيذ</span>
     <div class="segmented">
-      <button type="button" [class.active]="op.location === 'internal'" (click)="setLocation('internal')"><app-icon name="building" [size]="15" /> داخل المصنع</button>
-      <button type="button" [class.active]="op.location === 'external'" (click)="setLocation('external')"><app-icon name="external" [size]="15" /> خارجي (مقاول فرعي)</button>
+      @for (key of locationKeys; track key) {
+        <button type="button" [class.active]="op.location === key" (click)="setLocation(key)">
+          <app-icon [name]="locations[key].icon" [size]="15" /> {{ locations[key].label }}
+        </button>
+      }
     </div>
+    <span class="field__hint">{{ locations[op.location].hint }}</span>
   </div>
   @if (op.location === 'external') {
     <label class="field span-2">
-      <span class="field__label">اسم المورد / الشركة المنفذة</span>
+      <span class="field__label">اسم المقاول / الشركة المنفذة</span>
       <input class="input" [value]="op.subcontractor" (change)="update({ subcontractor: $any($event.target).value })" />
     </label>
     <label class="field">
       <span class="field__label">تكلفة التنفيذ الخارجي / وحدة ($)</span>
       <input class="input" type="number" min="0" step="any" [value]="op.externalUnitCost" (change)="setNumber('externalUnitCost', +$any($event.target).value)" />
+    </label>
+  } @else if (op.location === 'company') {
+    <label class="field span-2">
+      <span class="field__label">القسم المنفذ داخل الشركة</span>
+      <select class="select" (change)="update({ departmentId: $any($event.target).value || null })">
+        <option value="">— اختر القسم —</option>
+        @for (d of departments.all(); track d.id) {
+          <option [value]="d.id" [selected]="d.id === op.departmentId">{{ d.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">تكلفة ساعة العمل ($)</span>
+      <input class="input" type="number" min="0" step="any" [value]="op.companyHourlyRate" (change)="setNumber('companyHourlyRate', +$any($event.target).value)" />
     </label>
   } @else {
     <label class="field span-full">
@@ -85,35 +103,53 @@
   </div>
 </div>
 
-<h3 class="section-title"><app-icon name="calendar" [size]="15" /> التواريخ المخططة وساعات العمل</h3>
+<h3 class="section-title">
+  <app-icon name="calendar" [size]="15" />
+  {{ op.location === 'external' ? 'مواعيد التسليم والاستلام من المقاول' : 'التواريخ المخططة وساعات العمل' }}
+</h3>
 <div class="form-grid">
   <label class="field">
-    <span class="field__label">أقرب تاريخ بدء</span>
+    <span class="field__label">{{ op.location === 'external' ? 'تاريخ تسليم القطعة للمقاول' : 'أقرب تاريخ بدء' }}</span>
     <input class="input" type="date" [value]="op.earliestStart" (change)="update({ earliestStart: $any($event.target).value })" />
   </label>
   <label class="field">
-    <span class="field__label">آخر تاريخ انتهاء</span>
+    <span class="field__label">{{ op.location === 'external' ? 'تاريخ الاستلام المتوقع من المقاول' : 'آخر تاريخ انتهاء' }}</span>
     <input class="input" type="date" [value]="op.latestFinish" [min]="op.earliestStart" (change)="update({ latestFinish: $any($event.target).value })" />
   </label>
-  <label class="field">
-    <span class="field__label">ساعات العمل المخططة</span>
-    <input class="input" type="number" min="0" step="any" [value]="op.plannedHours" (change)="setNumber('plannedHours', +$any($event.target).value)" />
-  </label>
-  <label class="field">
-    <span class="field__label">ساعات العمل الفعلية</span>
-    <input class="input" type="number" min="0" step="any" [value]="op.actualHours" (change)="setNumber('actualHours', +$any($event.target).value)" />
-  </label>
-  <label class="field">
-    <span class="field__label">وقت الإعداد (دقيقة)</span>
-    <input class="input" type="number" min="0" [value]="op.setupMinutes" (change)="setNumber('setupMinutes', +$any($event.target).value)" />
-  </label>
-  <label class="field">
-    <span class="field__label">وقت معالجة القطعة (دقيقة)</span>
-    <input class="input" type="number" min="0" step="any" [value]="op.runMinutesPerUnit" (change)="setNumber('runMinutesPerUnit', +$any($event.target).value)" />
-  </label>
+  @if (op.location === 'external') {
+    <div class="field">
+      <span class="field__label">مدة التنفيذ لدى المقاول</span>
+      <strong class="num duration">{{ externalDays() }} يوم</strong>
+    </div>
+  } @else {
+    <label class="field">
+      <span class="field__label">ساعات العمل المخططة</span>
+      <input class="input" type="number" min="0" step="any" [value]="op.plannedHours" (change)="setNumber('plannedHours', +$any($event.target).value)" />
+    </label>
+    <label class="field">
+      <span class="field__label">ساعات العمل الفعلية</span>
+      <input class="input" type="number" min="0" step="any" [value]="op.actualHours" (change)="setNumber('actualHours', +$any($event.target).value)" />
+    </label>
+  }
+  @if (op.location === 'internal') {
+    <label class="field">
+      <span class="field__label">وقت الإعداد (دقيقة)</span>
+      <input class="input" type="number" min="0" [value]="op.setupMinutes" (change)="setNumber('setupMinutes', +$any($event.target).value)" />
+    </label>
+    <label class="field">
+      <span class="field__label">وقت معالجة القطعة (دقيقة)</span>
+      <input class="input" type="number" min="0" step="any" [value]="op.runMinutesPerUnit" (change)="setNumber('runMinutesPerUnit', +$any($event.target).value)" />
+    </label>
+  }
 </div>
 
-<h3 class="section-title"><app-icon name="package" [size]="15" /> المواد المستهلكة</h3>
+<h3 class="section-title">
+  <app-icon name="package" [size]="15" />
+  {{ op.location === 'external' ? 'المواد المورّدة للمقاول من مستودعنا' : 'المواد المستهلكة' }}
+</h3>
+@if (op.location === 'external') {
+  <p class="field__hint">سجّل فقط المواد التي نسلّمها للمقاول من مستودعاتنا — المواد التي يوفرها المقاول مشمولة في تكلفة التنفيذ الخارجي.</p>
+}
 <div class="list">
   @for (c of op.consumables; track c.materialId) {
     @let m = inventory.find(c.materialId);

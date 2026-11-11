@@ -1,5 +1,6 @@
 import { BomNode, Discipline, IsoDate, Project, ProjectStatus, SourcingDecision, Unit } from '@domain/models';
 import { addDays } from '@domain/rules';
+import { PROJECT_PROGRAMS } from './hierarchy.seed';
 
 interface NodeSpec {
   readonly name: string;
@@ -212,6 +213,17 @@ const SPECS: ProjectSpec[] = [
   },
 ];
 
+/** Responsible engineer per discipline in the demo data. */
+const OWNERS: Record<Discipline, string> = {
+  mechanical: 'u-eng',
+  electrical: 'e-7',
+  electronic: 'e-9',
+  pneumatic: 'e-6',
+  hydraulic: 'e-5',
+  software: 'e-9',
+  other: 'u-eng',
+};
+
 function buildNodes(spec: ProjectSpec, createdAt: IsoDate): BomNode[] {
   const nodes: BomNode[] = [];
   const visit = (node: NodeSpec, code: string, parentId: string | null, inherited: Discipline) => {
@@ -229,6 +241,7 @@ function buildNodes(spec: ProjectSpec, createdAt: IsoDate): BomNode[] {
       unit: node.unit ?? 'pcs',
       image: node.image ?? null,
       decision: node.decision ?? null,
+      ownerId: parentId === null ? 'u-pm' : OWNERS[discipline],
       purchaseUnitPrice: node.price ?? null,
       attachments: [],
       materials: (node.materials ?? []).map(([materialCode, quantity]) => ({ materialId: `m-${materialCode}`, quantity })),
@@ -251,6 +264,7 @@ export function seedProjects(today: IsoDate): { projects: Project[]; nodes: BomN
       code: spec.code,
       name: spec.root.name,
       customer: spec.customer,
+      programId: PROJECT_PROGRAMS[spec.id] ?? null,
       rootNodeId: nodeId(spec.code),
       productionQuantity: spec.productionQuantity,
       dueDate: addDays(today, spec.dueInDays),

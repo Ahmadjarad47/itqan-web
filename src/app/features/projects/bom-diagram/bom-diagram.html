@@ -39,10 +39,11 @@
         [expandedIds]="expanded()"
         (toggled)="toggle($event)"
         (opened)="opened.emit($event)"
+        (tasksRequested)="tasksRequested.emit($event)"
       />
     }
   </div>
 </div>
 <p class="hint subtle">
-  <app-icon name="eye" [size]="13" /> انقر على أي عقدة لفتح تفاصيلها · زر الدائرة أسفل العقدة لإظهار أو طي فروعها · اسحب الخلفية للتنقل · Ctrl + عجلة الفأرة للتكبير
+  <app-icon name="eye" [size]="13" /> أشِر إلى أي عقدة أو انقر عليها لإظهار الخيارات (التفاصيل، مسار التصنيع / الشراء، المهام) · نقرة مزدوجة لفتح التفاصيل · زر الدائرة أسفل العقدة لإظهار أو طي فروعها · اسحب الخلفية للتنقل · Ctrl + عجلة الفأرة للتكبير
 </p>

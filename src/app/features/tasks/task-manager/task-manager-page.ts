@@ -9,8 +9,22 @@ import { ProjectStore } from '@application/state/project.store';
 import { RoutingStore, WorkstationStore } from '@application/state/routing.store';
 import { TaskStore } from '@application/state/task.store';
 import { ToastService } from '@core/feedback/toast.service';
-import { EntityId, REJECT_REASON_LABELS, TaskStatus, WorkTask } from '@domain/models';
-import { todayIso } from '@domain/rules';
+import { PurchaseStore } from '@application/state/purchase.store';
+import { SessionStore } from '@application/state/session.store';
+import {
+  EntityId,
+  PurchaseStageKey,
+  REJECT_REASON_LABELS,
+  TASK_STATUS_LABELS,
+  TaskKind,
+  TaskStatus,
+  WorkTask,
+} from '@domain/models';
+import { PURCHASE_STAGES, todayIso, unreadMessages } from '@domain/rules';
+import { TaskChat } from '../shared/task-chat';
+
+type TaskScope = 'project' | 'standalone';
+const PROCUREMENT_DEPARTMENT = 'd-procurement';
 import { ArDatePipe, NumPipe } from '@shared/pipes/format.pipes';
 import { Avatar } from '@shared/ui/avatar/avatar';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -21,11 +35,13 @@ import { ProgressBar } from '@shared/ui/progress/progress';
 import { StatCard } from '@shared/ui/stat-card/stat-card';
 import { TaskStatusBadge } from '../shared/task-status-badge';
 
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
+
 type Filter = 'all' | TaskStatus | 'archived';
 
 @Component({
   selector: 'app-task-manager-page',
-  imports: [ReactiveFormsModule, PageHeader, StatCard, Icon, Modal, Avatar, EmptyState, ProgressBar, TaskStatusBadge, ArDatePipe, NumPipe],
+  imports: [ReactiveFormsModule, FormDraft, PageHeader, StatCard, Icon, Modal, Avatar, EmptyState, ProgressBar, TaskStatusBadge, TaskChat, ArDatePipe, NumPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-manager-page.html',
   styleUrl: './task-manager-page.scss',
@@ -39,6 +55,8 @@ export class TaskManagerPage {
   private readonly routing = inject(RoutingStore);
   private readonly workstations = inject(WorkstationStore);
   private readonly insights = inject(ProjectInsightsQuery);
+  private readonly purchases = inject(PurchaseStore);
+  private readonly session = inject(SessionStore);
   protected readonly projects = inject(ProjectStore);
   protected readonly departments = inject(DepartmentStore);
   protected readonly employees = inject(EmployeeStore);
@@ -105,11 +123,15 @@ export class TaskManagerPage {
     };
   });
 
-  // ---- New task flow: component & operation → department & person → dates & notes → send
+  // ---- New task flow: scope & activity → department & person → dates & notes → send
   protected readonly form = this.fb.group({
-    projectId: ['', Validators.required],
-    nodeId: ['', Validators.required],
-    operationId: ['', Validators.required],
+    scope: ['project' as TaskScope],
+    projectId: [''],
+    nodeId: [''],
+    /** 'op:<operationId>' | 'pr:<stageKey>' | 'custom' */
+    activity: [''],
+    title: [''],
+    description: [''],
     departmentId: ['', Validators.required],
     assigneeId: ['', Validators.required],
     start: [todayIso(), Validators.required],
@@ -118,54 +140,124 @@ export class TaskManagerPage {
     notes: [''],
   });
 
-  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
+  protected readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
   protected readonly nodeOptions = computed(() => {
     const projectId = this.formValue().projectId;
+    if (!projectId) return [];
+    const tree = this.bom.tree();
     return this.bom
       .all()
-      .filter((n) => n.projectId === projectId && this.routing.forNode(n.id).length)
-      .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }));
+      .filter((n) => n.projectId === projectId)
+      .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
+      .map((node) => ({ node, level: tree.level(node.id) }));
   });
 
-  protected readonly operationOptions = computed(() => this.routing.forNode(this.formValue().nodeId ?? '').filter((op) => !op.completed));
+  protected readonly selectedNode = computed(() => this.bom.find(this.formValue().nodeId));
+
+  /** Work related to the selected component: its manufacturing route and its purchase flow. */
+  protected readonly activityOptions = computed(() => {
+    const nodeId = this.formValue().nodeId ?? '';
+    const operations = this.routing.forNode(nodeId).filter((op) => !op.completed);
+    const request = this.purchases.byNode().get(nodeId);
+    const stages = request ? PURCHASE_STAGES.filter((def) => !request.stages.find((s) => s.key === def.key)?.done) : [];
+    return { operations, request, stages };
+  });
+
+  protected readonly isCustom = computed(() => this.formValue().scope === 'standalone' || this.formValue().activity === 'custom');
   protected readonly employeeOptions = computed(() => this.employees.inDepartment(this.formValue().departmentId || null));
+
+  // ---- Task details & chat
+  protected readonly selectedId = signal<EntityId | null>(null);
+  protected readonly detailOpen = signal(false);
+  protected readonly selected = computed(() => {
+    const task = this.tasks.find(this.selectedId());
+    return task ? this.views.view(task) : undefined;
+  });
+  protected readonly statusLabels = TASK_STATUS_LABELS;
 
   constructor() {
     const controls = this.form.controls;
+    controls.scope.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.form.patchValue({ projectId: '', nodeId: '', activity: '', targetQuantity: 1 });
+    });
     controls.projectId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => controls.nodeId.setValue(''));
-    controls.nodeId.valueChanges.pipe(takeUntilDestroyed()).subscribe((nodeId) => {
-      controls.operationId.setValue('');
-      if (nodeId) controls.targetQuantity.setValue(this.insights.lotSize(nodeId));
-    });
-    controls.operationId.valueChanges.pipe(takeUntilDestroyed()).subscribe((opId) => {
-      const op = this.routing.find(opId);
-      if (!op) return;
-      const dept = this.workstations.find(op.workstationId)?.departmentId;
-      this.form.patchValue({ start: op.earliestStart, end: op.latestFinish, ...(dept ? { departmentId: dept } : {}) });
-    });
+    controls.nodeId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => controls.activity.setValue(''));
+    controls.activity.valueChanges.pipe(takeUntilDestroyed()).subscribe((activity) => this.applyActivityDefaults(activity));
     controls.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => controls.assigneeId.setValue(''));
   }
 
+  private applyActivityDefaults(activity: string): void {
+    const nodeId = this.form.controls.nodeId.value;
+    if (activity.startsWith('op:')) {
+      const op = this.routing.find(activity.slice(3));
+      if (!op) return;
+      const dept = this.workstations.find(op.workstationId)?.departmentId;
+      this.form.patchValue({
+        start: op.earliestStart,
+        end: op.latestFinish,
+        targetQuantity: this.insights.lotSize(nodeId),
+        ...(dept ? { departmentId: dept } : {}),
+      });
+    } else if (activity.startsWith('pr:')) {
+      const dept = this.departments.all().find((d) => d.id === PROCUREMENT_DEPARTMENT);
+      this.form.patchValue({ targetQuantity: 1, ...(dept ? { departmentId: dept.id } : {}) });
+    } else if (activity === 'custom') {
+      this.form.patchValue({ targetQuantity: 1 });
+    }
+  }
+
   protected openCreate(): void {
-    this.form.reset({ start: todayIso(), end: todayIso(), targetQuantity: 1 });
+    this.form.reset({ scope: 'project', start: todayIso(), end: todayIso(), targetQuantity: 1 });
     this.creating.set(true);
   }
 
   protected send(): void {
-    if (this.form.invalid) {
+    const value = this.form.getRawValue();
+    const standalone = value.scope === 'standalone';
+    const missing =
+      this.form.invalid ||
+      (!standalone && (!value.projectId || !value.nodeId || !value.activity)) ||
+      (this.isCustom() && !value.title.trim());
+    if (missing) {
       this.form.markAllAsTouched();
-      this.toast.warning('أكمل الحقول المطلوبة');
+      this.toast.warning('أكمل الحقول المطلوبة', this.isCustom() && !value.title.trim() ? 'أدخل عنوان المهمة' : undefined);
       return;
     }
-    const value = this.form.getRawValue();
     if (value.end < value.start) {
       this.toast.warning('تاريخ النهاية قبل تاريخ البداية');
       return;
     }
-    const task = this.tasks.create(value);
+    const activity = standalone ? 'custom' : value.activity;
+    const kind: TaskKind = activity.startsWith('op:') ? 'operation' : activity.startsWith('pr:') ? 'purchase' : 'custom';
+    const task = this.tasks.create({
+      kind,
+      projectId: standalone ? null : value.projectId,
+      nodeId: standalone ? null : value.nodeId,
+      operationId: kind === 'operation' ? activity.slice(3) : null,
+      purchaseId: kind === 'purchase' ? (this.activityOptions().request?.id ?? null) : null,
+      purchaseStage: kind === 'purchase' ? (activity.slice(3) as PurchaseStageKey) : null,
+      title: kind === 'custom' ? value.title.trim() : '',
+      description: value.description.trim(),
+      createdById: this.session.userId() || null,
+      departmentId: value.departmentId,
+      assigneeId: value.assigneeId,
+      start: value.start,
+      end: value.end,
+      notes: value.notes,
+      targetQuantity: kind === 'operation' ? value.targetQuantity : 1,
+    });
     this.creating.set(false);
     this.toast.success('تم إرسال المهمة', `${task.number} إلى ${this.employees.find(task.assigneeId)?.name}`);
+  }
+
+  protected openTask(id: EntityId): void {
+    this.selectedId.set(id);
+    this.detailOpen.set(true);
+  }
+
+  protected unread(task: WorkTask): number {
+    return unreadMessages(task, this.session.userId());
   }
 
   protected archive(id: EntityId, archived: boolean): void {

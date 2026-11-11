@@ -4,9 +4,35 @@
   eyebrow="نمذجة شجرة المنتج المرئية — Visual BOM"
   icon="tree"
 >
+  <button *appCan="'projects.manage'" type="button" class="btn" (click)="openProgram()"><app-icon name="layers" [size]="17" /> برنامج جديد</button>
   <button *appCan="'projects.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> مشروع جديد</button>
 </app-page-header>
 
+<div class="list-bar">
+  <div class="chips">
+    <button type="button" class="chip" [class.active]="!programFilter()" (click)="programFilter.set('')">
+      كل البرامج <span class="count num">{{ projects.all().length }}</span>
+    </button>
+    @for (p of programs.sorted(); track p.id) {
+      <button type="button" class="chip" [class.active]="programFilter() === p.id" (click)="programFilter.set(p.id)" [title]="p.description">
+        <span class="ltr">{{ p.code }}</span> — {{ p.name }} <span class="count num">{{ programCounts().get(p.id) ?? 0 }}</span>
+      </button>
+    }
+    @if (programCounts().get('none'); as n) {
+      <button type="button" class="chip" [class.active]="programFilter() === 'none'" (click)="programFilter.set('none')">
+        غير مصنفة <span class="count num">{{ n }}</span>
+      </button>
+    }
+  </div>
+  <div class="segmented" role="tablist">
+    <button type="button" [class.active]="view() === 'cards'" (click)="view.set('cards')"><app-icon name="grid" [size]="15" /> بطاقات المشاريع</button>
+    <button type="button" [class.active]="view() === 'hierarchy'" (click)="view.set('hierarchy')"><app-icon name="tree" [size]="15" /> الهيكل التنظيمي</button>
+  </div>
+</div>
+
+@if (view() === 'hierarchy') {
+  <app-hierarchy-chart (editCompany)="canManage() && openCompany()" (programSelected)="selectProgram($event)" />
+} @else {
 <div class="grid-cards">
   @for (card of cards(); track card.project.id; let i = $index) {
     <article class="project-card" [style.--i]="i" [routerLink]="['/projects', card.project.id]">
@@ -25,7 +51,12 @@
       </div>
 
       <div class="project-card__body">
-        <span class="code">{{ card.project.code }}</span>
+        <div class="row">
+          <span class="code">{{ card.project.code }}</span>
+          @if (card.program; as prog) {
+            <span class="badge badge--primary" [title]="prog.name">برنامج <span class="ltr">{{ prog.code }}</span></span>
+          }
+        </div>
         <h2>{{ card.project.name }}</h2>
         <p class="muted">{{ card.project.customer }}</p>
 
@@ -33,6 +64,7 @@
           <div><span>المستويات</span><strong class="num">{{ card.levels }}</strong></div>
           <div><span>مكونات رئيسية</span><strong class="num">{{ card.mainComponents }}</strong></div>
           <div><span>التسليم</span><strong>{{ card.project.dueDate | arDate: 'short' }}</strong></div>
+          <div><span>الموديلات / الوحدات</span><strong class="num">{{ card.models }} / {{ card.units }}</strong></div>
         </div>
 
         <app-progress-bar [value]="card.progress" [height]="7" />
@@ -66,11 +98,54 @@
         </div>
       </div>
     </article>
+  } @empty {
+    <p class="subtle">لا توجد مشاريع ضمن هذا البرنامج بعد.</p>
   }
 </div>
+}
+
+<app-modal [(open)]="programOpen" title="برنامج جديد" subtitle="البرنامج يجمع المشاريع المترابطة تحت الشركة (مثال: A — برنامج الرصد)" width="520px">
+  @let pd = programDraft();
+  <div class="form-grid">
+    <label class="field">
+      <span class="field__label">رمز البرنامج *</span>
+      <input class="input ltr" [value]="pd.code" placeholder="A" (input)="patchProgram({ code: $any($event.target).value })" />
+    </label>
+    <label class="field">
+      <span class="field__label">اسم البرنامج *</span>
+      <input class="input" [value]="pd.name" placeholder="برنامج الرصد" (input)="patchProgram({ name: $any($event.target).value })" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">الوصف</span>
+      <textarea class="textarea" [value]="pd.description" (input)="patchProgram({ description: $any($event.target).value })"></textarea>
+    </label>
+  </div>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="programOpen.set(false)">إلغاء</button>
+    <button type="button" class="btn btn--primary" (click)="saveProgram()"><app-icon name="check" [size]="16" /> إنشاء البرنامج</button>
+  </ng-container>
+</app-modal>
+
+<app-modal [(open)]="companyOpen" title="بيانات الشركة" subtitle="رأس الهيكل التنظيمي" width="440px">
+  @let cd = companyDraft();
+  <div class="form-grid">
+    <label class="field">
+      <span class="field__label">رمز الشركة *</span>
+      <input class="input ltr" [value]="cd.code" (input)="companyDraft.set({ code: $any($event.target).value, name: cd.name })" />
+    </label>
+    <label class="field">
+      <span class="field__label">الاسم</span>
+      <input class="input" [value]="cd.name" (input)="companyDraft.set({ code: cd.code, name: $any($event.target).value })" />
+    </label>
+  </div>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="companyOpen.set(false)">إلغاء</button>
+    <button type="button" class="btn btn--primary" (click)="saveCompany()"><app-icon name="check" [size]="16" /> حفظ</button>
+  </ng-container>
+</app-modal>
 
 <app-modal [(open)]="creating" title="مشروع جديد" subtitle="يُنشأ المشروع مع عقدة المستوى 0 (المنتج النهائي القابل للشحن)" width="640px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="project-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="project-form" [appDraft]="'project:new'" [draftActive]="creating()">
     <label class="field">
       <span class="field__label">رمز المشروع *</span>
       <input class="input ltr" formControlName="code" placeholder="MX-100" />
@@ -78,6 +153,15 @@
     <label class="field">
       <span class="field__label">العميل *</span>
       <input class="input" formControlName="customer" />
+    </label>
+    <label class="field span-full">
+      <span class="field__label">البرنامج</span>
+      <select class="select" formControlName="programId">
+        <option value="">— بدون برنامج —</option>
+        @for (p of programs.sorted(); track p.id) {
+          <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+        }
+      </select>
     </label>
     <label class="field span-full">
       <span class="field__label">اسم المنتج النهائي *</span>

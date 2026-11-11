@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NotificationsQuery } from '@application/queries/notifications.query';
@@ -14,11 +14,12 @@ import { FeedbackHost } from '@core/feedback/feedback-host';
 import { Avatar } from '@shared/ui/avatar/avatar';
 import { Icon } from '@shared/ui/icon/icon';
 import { Logo } from '@shared/ui/logo/logo';
+import { PageSkeleton } from '@shared/ui/skeleton/skeleton';
 import { NAVIGATION } from './navigation';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, Logo, Avatar, FeedbackHost],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, Logo, Avatar, FeedbackHost, PageSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:click)': 'closeMenus()' },
   templateUrl: './shell.html',
@@ -41,6 +42,9 @@ export class Shell {
   );
   protected readonly sidebarOpen = signal(false);
   protected readonly menu = signal<'notifications' | 'user' | null>(null);
+  /** True while a navigation is still resolving (lazy chunk, guards) after a short grace period. */
+  protected readonly loading = signal(false);
+  private loadingTimer: ReturnType<typeof setTimeout> | undefined;
   protected readonly today = new Intl.DateTimeFormat('ar-SY-u-nu-latn', {
     weekday: 'long',
     day: 'numeric',
@@ -49,6 +53,17 @@ export class Shell {
   }).format(new Date());
 
   constructor() {
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof NavigationStart) {
+        clearTimeout(this.loadingTimer);
+        // Instant navigations (already-loaded chunks) never flash the loader.
+        this.loadingTimer = setTimeout(() => this.loading.set(true), 120);
+      } else if (event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError) {
+        clearTimeout(this.loadingTimer);
+        this.loading.set(false);
+      }
+    });
+
     this.router.events.pipe(
         filter((event) => event instanceof NavigationEnd),
         takeUntilDestroyed(),

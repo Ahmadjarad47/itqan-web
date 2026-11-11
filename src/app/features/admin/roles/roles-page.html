@@ -151,7 +151,7 @@
 }
 
 <app-modal [(open)]="creating" title="دور جديد" width="520px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="role-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="role-form" [appDraft]="'role:new'" [draftActive]="creating()">
     <label class="field span-full">
       <span class="field__label">اسم الدور *</span>
       <input class="input" formControlName="name" placeholder="مثال: مراقب جودة" />

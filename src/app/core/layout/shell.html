@@ -1,3 +1,6 @@
+@if (loading()) {
+  <div class="route-progress" role="progressbar" aria-label="جارٍ التحميل"></div>
+}
 <div class="shell">
   <aside class="sidebar" [class.sidebar--open]="sidebarOpen()">
     <a class="brand" routerLink="/dashboard">
@@ -117,8 +120,13 @@
       </div>
     </header>
 
-    <main class="content">
-      <router-outlet />
+    <main class="content" [attr.aria-busy]="loading()">
+      @if (loading()) {
+        <app-page-skeleton />
+      }
+      <div class="outlet" [hidden]="loading()">
+        <router-outlet />
+      </div>
     </main>
   </div>
 </div>

@@ -78,6 +78,10 @@ img {
   unicode-bidi: isolate;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 .num {
   font-variant-numeric: tabular-nums;
 }

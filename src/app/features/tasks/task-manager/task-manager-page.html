@@ -38,11 +38,22 @@
         </thead>
         <tbody>
           @for (v of rows(); track v.task.id) {
-            <tr>
+            <tr class="clickable" (click)="openTask(v.task.id)">
               <td>
                 <div class="title">
-                  <span class="row"><span class="code">{{ v.task.number }}</span><strong>{{ v.operation?.sequence }} — {{ v.operation?.name }}</strong></span>
-                  <small>{{ v.node?.name }} · <span class="ltr">{{ v.project?.code }}</span></small>
+                  <span class="row">
+                    <span class="code">{{ v.task.number }}</span>
+                    <span class="badge kind" [class]="'badge kind kind--' + v.task.kind">{{ v.kindLabel }}</span>
+                    <strong>{{ v.title }}</strong>
+                  </span>
+                  <small>
+                    {{ v.context }}
+                    @if (v.task.messages.length) {
+                      <span class="chat-count" [class.chat-count--new]="unread(v.task) > 0">
+                        <app-icon name="message" [size]="12" /> {{ unread(v.task) || v.task.messages.length }}
+                      </span>
+                    }
+                  </small>
                 </div>
               </td>
               <td>
@@ -72,7 +83,7 @@
                 <app-progress-bar [value]="v.progress" />
                 <small class="subtle num">{{ v.completedQuantity | num }} / {{ v.task.targetQuantity | num }}</small>
               </td>
-              <td>
+              <td (click)="$event.stopPropagation()">
                 @if (v.task.archived) {
                   <button type="button" class="btn btn--sm btn--ghost" (click)="archive(v.task.id, false)"><app-icon name="undo" [size]="14" /> استعادة</button>
                 } @else if (v.task.status === 'completed') {
@@ -119,39 +130,74 @@
   </aside>
 </div>
 
-<app-modal [(open)]="creating" title="مهمة جديدة" subtitle="تعيين عملية مكون إلى القسم والموظف المعني" width="680px">
-  <form [formGroup]="form" (ngSubmit)="send()" id="task-form" class="flow">
+<app-modal [(open)]="creating" title="مهمة جديدة" subtitle="مهمة لمكون في مشروع، أو مهمة مستقلة غير تابعة لأي مشروع" width="680px">
+  @let fv = formValue();
+  <form [formGroup]="form" (ngSubmit)="send()" id="task-form" [appDraft]="'task:new'" [draftActive]="creating()" class="flow">
     <div class="flow__step">
       <span class="flow__num">1</span>
       <div class="flow__body">
-        <h4>تحديد المكون والعملية</h4>
+        <h4>نوع المهمة والعمل المطلوب</h4>
+        <div class="segmented scope">
+          <button type="button" [class.active]="fv.scope === 'project'" (click)="form.controls.scope.setValue('project')"><app-icon name="tree" [size]="15" /> تابعة لمشروع</button>
+          <button type="button" [class.active]="fv.scope === 'standalone'" (click)="form.controls.scope.setValue('standalone')"><app-icon name="clipboard" [size]="15" /> مهمة مستقلة</button>
+        </div>
         <div class="form-grid">
-          <label class="field">
-            <span class="field__label">المشروع</span>
-            <select class="select" formControlName="projectId">
-              <option value="">اختر...</option>
-              @for (p of projects.sorted(); track p.id) {
-                <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+          @if (fv.scope === 'project') {
+            <label class="field">
+              <span class="field__label">المشروع *</span>
+              <select class="select" formControlName="projectId">
+                <option value="">اختر...</option>
+                @for (p of projects.sorted(); track p.id) {
+                  <option [value]="p.id">{{ p.code }} — {{ p.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">المكون *</span>
+              <select class="select" formControlName="nodeId">
+                <option value="">اختر...</option>
+                @for (o of nodeOptions(); track o.node.id) {
+                  <option [value]="o.node.id">L{{ o.level }} · {{ o.node.code }} — {{ o.node.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="field span-full">
+              <span class="field__label">العملية *</span>
+              @let acts = activityOptions();
+              <select class="select" formControlName="activity">
+                <option value="">{{ fv.nodeId ? 'اختر العملية المتعلقة بالقطعة...' : 'اختر المكون أولاً' }}</option>
+                @if (acts.operations.length) {
+                  <optgroup label="عمليات التصنيع (مسار الإنتاج)">
+                    @for (op of acts.operations; track op.id) {
+                      <option [value]="'op:' + op.id">{{ op.sequence }} — {{ op.name }}</option>
+                    }
+                  </optgroup>
+                }
+                @if (acts.request) {
+                  <optgroup [label]="'مراحل الشراء — ' + acts.request.number">
+                    @for (st of acts.stages; track st.key) {
+                      <option [value]="'pr:' + st.key">{{ st.label }}</option>
+                    }
+                  </optgroup>
+                }
+                <optgroup label="خارج الخطة">
+                  <option value="custom">+ مهمة مخصصة للعنصر غير موجودة في الخطة</option>
+                </optgroup>
+              </select>
+              @if (fv.nodeId && !acts.operations.length && !acts.request) {
+                <span class="field__hint">لا توجد عمليات تصنيع أو طلب شراء مفتوح لهذا المكون — يمكنك إضافة مهمة مخصصة.</span>
               }
-            </select>
-          </label>
-          <label class="field">
-            <span class="field__label">المكون</span>
-            <select class="select" formControlName="nodeId">
-              <option value="">اختر...</option>
-              @for (n of nodeOptions(); track n.id) {
-                <option [value]="n.id">{{ n.code }} — {{ n.name }}</option>
-              }
-            </select>
-          </label>
+            </label>
+          }
+          @if (isCustom()) {
+            <label class="field span-full" animate.enter="enter-fade">
+              <span class="field__label">عنوان المهمة *</span>
+              <input class="input" formControlName="title" placeholder="مثال: مراجعة المخططات مع العميل" />
+            </label>
+          }
           <label class="field span-full">
-            <span class="field__label">العملية</span>
-            <select class="select" formControlName="operationId">
-              <option value="">اختر...</option>
-              @for (op of operationOptions(); track op.id) {
-                <option [value]="op.id">{{ op.sequence }} — {{ op.name }}</option>
-              }
-            </select>
+            <span class="field__label">وصف المهمة</span>
+            <textarea class="textarea" formControlName="description" placeholder="ما المطلوب تنفيذه بالتفصيل..."></textarea>
           </label>
         </div>
       </div>
@@ -197,10 +243,12 @@
             <span class="field__label">النهاية</span>
             <input class="input" type="date" formControlName="end" />
           </label>
-          <label class="field">
-            <span class="field__label">الكمية المستهدفة</span>
-            <input class="input" type="number" min="1" formControlName="targetQuantity" />
-          </label>
+          @if (fv.activity?.startsWith('op:')) {
+            <label class="field">
+              <span class="field__label">الكمية المستهدفة</span>
+              <input class="input" type="number" min="1" formControlName="targetQuantity" />
+            </label>
+          }
           <label class="field span-full">
             <span class="field__label">ملاحظات</span>
             <textarea class="textarea" formControlName="notes"></textarea>
@@ -239,4 +287,29 @@
     <button type="button" class="btn" (click)="reassignOpen.set(false)">إلغاء</button>
     <button type="button" class="btn btn--primary" [disabled]="!reassignEmployee()" (click)="confirmReassign()"><app-icon name="send" [size]="16" /> إرسال</button>
   </ng-container>
+</app-modal>
+
+<app-modal [(open)]="detailOpen" [title]="selected()?.title ?? ''" [subtitle]="(selected()?.task?.number ?? '') + ' · ' + (selected()?.context ?? '')" width="640px">
+  @if (selected(); as v) {
+    <div class="detail">
+      <dl class="detail__facts">
+        <div><dt>النوع</dt><dd>{{ v.kindLabel }}</dd></div>
+        <div><dt>الحالة</dt><dd><app-task-status-badge [status]="v.task.status" /></dd></div>
+        <div><dt>المكلّف</dt><dd>{{ v.assignee?.name ?? '—' }} <small class="subtle">{{ v.department?.name }}</small></dd></div>
+        <div><dt>المسؤول</dt><dd>{{ v.manager?.name ?? '—' }}</dd></div>
+        <div><dt>الفترة</dt><dd class="num">{{ v.task.start | arDate: 'short' }} ← {{ v.task.end | arDate: 'short' }}</dd></div>
+        @if (v.task.kind === 'operation') {
+          <div><dt>المنجز</dt><dd class="num">{{ v.completedQuantity | num }} / {{ v.task.targetQuantity | num }}</dd></div>
+        }
+      </dl>
+      @if (v.task.description) {
+        <p class="detail__text"><strong>الوصف:</strong> {{ v.task.description }}</p>
+      }
+      @if (v.task.notes) {
+        <p class="detail__text"><strong>ملاحظات:</strong> {{ v.task.notes }}</p>
+      }
+      <h4 class="section-title"><app-icon name="message" [size]="15" /> المحادثة مع {{ v.assignee?.name ?? 'المكلّف' }}</h4>
+      <app-task-chat [taskId]="v.task.id" />
+    </div>
+  }
 </app-modal>

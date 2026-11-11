@@ -69,6 +69,15 @@
             </select>
           </label>
           <label class="field">
+            <span class="field__label">الشخص المعني بالعنصر</span>
+            <select class="select" (change)="update({ ownerId: $any($event.target).value || null })">
+              <option value="">— غير محدد —</option>
+              @for (e of employees.activeUsers(); track e.id) {
+                <option [value]="e.id" [selected]="e.id === item.ownerId">{{ e.name }} — {{ e.title }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
             <span class="field__label">كمية الاستخدام (Multiplier)</span>
             <input
               class="input"

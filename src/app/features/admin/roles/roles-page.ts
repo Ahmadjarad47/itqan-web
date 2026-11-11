@@ -9,10 +9,11 @@ import { Avatar } from '@shared/ui/avatar/avatar';
 import { Icon } from '@shared/ui/icon/icon';
 import { Modal } from '@shared/ui/modal/modal';
 import { PageHeader } from '@shared/ui/page-header/page-header';
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-roles-page',
-  imports: [ReactiveFormsModule, PageHeader, Icon, Modal, Avatar],
+  imports: [ReactiveFormsModule, FormDraft, PageHeader, Icon, Modal, Avatar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './roles-page.html',
   styleUrl: './roles-page.scss',

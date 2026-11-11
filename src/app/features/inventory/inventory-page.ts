@@ -26,10 +26,11 @@ import { Icon } from '@shared/ui/icon/icon';
 import { Modal } from '@shared/ui/modal/modal';
 import { PageHeader } from '@shared/ui/page-header/page-header';
 import { StatCard } from '@shared/ui/stat-card/stat-card';
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-inventory-page',
-  imports: [ReactiveFormsModule, CanDirective, CustomFieldsForm, PageHeader, StatCard, Icon, Modal, EmptyState, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [ReactiveFormsModule, FormDraft, CanDirective, CustomFieldsForm, PageHeader, StatCard, Icon, Modal, EmptyState, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './inventory-page.html',
   styleUrl: './inventory-page.scss',

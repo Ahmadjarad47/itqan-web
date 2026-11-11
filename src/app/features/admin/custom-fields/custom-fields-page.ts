@@ -20,10 +20,11 @@ import { PageHeader } from '@shared/ui/page-header/page-header';
 
 /** Entities whose list screens can show custom columns. */
 const LIST_ENTITIES: readonly CustomFieldEntity[] = ['supplier', 'material'];
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-custom-fields-page',
-  imports: [ReactiveFormsModule, PageHeader, Icon, Modal, EmptyState, CustomFieldsForm],
+  imports: [ReactiveFormsModule, FormDraft, PageHeader, Icon, Modal, EmptyState, CustomFieldsForm],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './custom-fields-page.html',
   styleUrl: './custom-fields-page.scss',

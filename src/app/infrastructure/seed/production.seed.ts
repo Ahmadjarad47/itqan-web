@@ -16,6 +16,8 @@ interface OpSpec {
   readonly state?: OpState;
   readonly progress?: number;
   readonly external?: readonly [string, number];
+  /** In-company operation: executing department and hourly rate. */
+  readonly company?: readonly [string, number];
   readonly consumables?: readonly [string, number][];
   readonly inputs?: readonly OperationInput[];
   readonly description?: string;
@@ -74,6 +76,7 @@ const ROUTINGS: Record<string, OpSpec[]> = {
   'ATL-3': [
     { name: 'تجميع اللوحة الكهربائية', ws: 'ws-panel', setup: 20, run: 360, hours: 24, start: 3, days: 6, state: 'planned' },
     { name: 'اختبار العزل والتشغيل', ws: 'ws-qc', setup: 15, run: 60, hours: 4, start: 10, days: 1, state: 'planned' },
+    { name: 'برمجة PLC وشاشة HMI', hours: 16, start: 5, days: 5, state: 'planned', company: ['d-planning', 22], description: 'تطوير برنامج التحكم وواجهة التشغيل في قسم الهندسة' },
   ],
   'ATL-4': [
     { name: 'تجميع النظام الهوائي', ws: 'ws-assembly', setup: 15, run: 120, hours: 10, start: 8, days: 3, state: 'planned' },
@@ -122,10 +125,12 @@ export function seedOperations(today: IsoDate): RoutingOperation[] {
         sequence,
         name: spec.name,
         description: spec.description ?? '',
-        location: spec.external ? 'external' : 'internal',
+        location: spec.external ? 'external' : spec.company ? 'company' : 'internal',
         subcontractor: spec.external?.[0] ?? '',
         externalUnitCost: spec.external?.[1] ?? 0,
         workstationId: spec.ws ?? null,
+        departmentId: spec.company?.[0] ?? null,
+        companyHourlyRate: spec.company?.[1] ?? 0,
         inputs: spec.inputs ?? [],
         earliestStart,
         latestFinish,

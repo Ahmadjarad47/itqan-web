@@ -15,7 +15,12 @@ export abstract class EntityStore<T extends Entity> {
   readonly byId = computed(() => new Map(this.state().map((entity) => [entity.id, entity] as const)));
 
   async load(): Promise<void> {
-    this.state.set(await this.repository.getAll());
+    this.state.set((await this.repository.getAll()).map((entity) => this.normalize(entity)));
+  }
+
+  /** Fills defaults for fields added after the entity was first stored. */
+  protected normalize(entity: T): T {
+    return entity;
   }
 
   find(id: EntityId | null | undefined): T | undefined {

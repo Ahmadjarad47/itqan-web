@@ -10,12 +10,15 @@ import {
   EntityId,
   INPUT_KIND_LABELS,
   OperationInputKind,
+  OPERATION_LOCATION_KEYS,
+  OPERATION_LOCATIONS,
   OperationLocation,
   ProgressMode,
   RoutingOperation,
   UNIT_LABELS,
 } from '@domain/models';
-import { operationUnitCost } from '@domain/rules';
+import { diffDays, operationUnitCost } from '@domain/rules';
+import { DepartmentStore } from '@application/state/organization.store';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
 import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import { Icon } from '@shared/ui/icon/icon';
@@ -38,6 +41,7 @@ export class OperationForm {
   private readonly toast = inject(ToastService);
   protected readonly inventory = inject(InventoryStore);
   protected readonly workstations = inject(WorkstationStore);
+  protected readonly departments = inject(DepartmentStore);
 
   private readonly fieldDefinitions = inject(CustomFieldStore);
 
@@ -47,6 +51,9 @@ export class OperationForm {
   protected readonly customFields = computed(() => this.fieldDefinitions.activeFor('operation'));
 
   protected readonly unitLabels = UNIT_LABELS;
+  protected readonly locations = OPERATION_LOCATIONS;
+  protected readonly locationKeys = OPERATION_LOCATION_KEYS;
+  protected readonly externalDays = computed(() => diffDays(this.operation().earliestStart, this.operation().latestFinish) + 1);
   protected readonly inputKinds = Object.keys(INPUT_KIND_LABELS) as OperationInputKind[];
   protected readonly inputKindLabels = INPUT_KIND_LABELS;
   protected readonly newInputKind = signal<OperationInputKind>('component');
@@ -87,7 +94,7 @@ export class OperationForm {
     this.routing.update(this.operation().id, changes);
   }
 
-  protected setNumber(field: 'sequence' | 'plannedHours' | 'actualHours' | 'setupMinutes' | 'runMinutesPerUnit' | 'externalUnitCost' | 'completedQuantity', value: number): void {
+  protected setNumber(field: 'sequence' | 'plannedHours' | 'actualHours' | 'setupMinutes' | 'runMinutesPerUnit' | 'externalUnitCost' | 'companyHourlyRate' | 'completedQuantity', value: number): void {
     this.update({ [field]: Math.max(0, value || 0) });
   }
 

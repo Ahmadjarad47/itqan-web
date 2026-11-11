@@ -79,7 +79,7 @@
 </section>
 
 <app-modal [(open)]="dialogOpen" [title]="editingId() ? 'تعديل المستخدم' : 'مستخدم جديد'" width="560px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="user-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="user-form" [appDraft]="'user:' + (editingId() ?? 'new')" [draftActive]="dialogOpen()">
     <label class="field span-full">
       <span class="field__label">الاسم الكامل *</span>
       <input class="input" formControlName="name" />

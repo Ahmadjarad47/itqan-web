@@ -1,26 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BomStore } from '@application/state/bom.store';
+import { EmployeeStore } from '@application/state/organization.store';
 import { ToastService } from '@core/feedback/toast.service';
 import { BomNode, Discipline, DISCIPLINES, DISCIPLINE_KEYS, EntityId, levelTitle, Unit, UNIT_LABELS } from '@domain/models';
 import { Icon } from '@shared/ui/icon/icon';
 import { Modal } from '@shared/ui/modal/modal';
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-add-component-dialog',
-  imports: [ReactiveFormsModule, Modal, Icon],
+  imports: [ReactiveFormsModule, FormDraft, Modal, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-modal [(open)]="open" title="إضافة مكون فرعي" [subtitle]="subtitle()" width="600px">
-      <form class="form-grid" [formGroup]="form" (ngSubmit)="submit()" id="add-component-form">
+      <form class="form-grid" [formGroup]="form" (ngSubmit)="submit()" id="add-component-form" [appDraft]="'component:' + parentId()" [draftActive]="open()">
         <label class="field span-full">
           <span class="field__label">اسم المكون *</span>
           <input class="input" formControlName="name" placeholder="مثال: صفيحة تثبيت المحرك" />
-        </label>
-        <label class="field">
-          <span class="field__label">رمز الجزء (فريد)</span>
-          <input class="input ltr" formControlName="code" [placeholder]="suggestedCode()" />
-          <span class="field__hint">يُولَّد تلقائياً إن تُرك فارغاً</span>
         </label>
         <label class="field">
           <span class="field__label">القسم ذو الصلة</span>
@@ -29,6 +26,20 @@ import { Modal } from '@shared/ui/modal/modal';
               <option [value]="d.key">{{ d.label }}</option>
             }
           </select>
+        </label>
+        <label class="field">
+          <span class="field__label">الشخص المعني بالعنصر</span>
+          <select class="select" formControlName="ownerId">
+            <option value="">— غير محدد —</option>
+            @for (e of employees.activeUsers(); track e.id) {
+              <option [value]="e.id">{{ e.name }} — {{ e.title }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">رمز الجزء (فريد)</span>
+          <input class="input ltr" formControlName="code" [placeholder]="suggestedCode()" />
+          <span class="field__hint">يُولَّد تلقائياً إن تُرك فارغاً</span>
         </label>
         <label class="field">
           <span class="field__label">كمية الاستخدام في الأصل (Multiplier) *</span>
@@ -60,6 +71,7 @@ export class AddComponentDialog {
   private readonly bom = inject(BomStore);
   private readonly toast = inject(ToastService);
   private readonly fb = inject(NonNullableFormBuilder);
+  protected readonly employees = inject(EmployeeStore);
 
   readonly open = model(false);
   readonly parentId = input.required<EntityId>();
@@ -79,6 +91,7 @@ export class AddComponentDialog {
     name: ['', Validators.required],
     code: [''],
     discipline: ['mechanical' as Discipline],
+    ownerId: [''],
     quantity: [1, [Validators.required, Validators.min(0.01)]],
     unit: ['pcs' as Unit],
     description: [''],
@@ -87,7 +100,7 @@ export class AddComponentDialog {
   constructor() {
     effect(() => {
       if (this.open()) {
-        this.form.reset({ discipline: this.parent()?.discipline ?? 'mechanical', quantity: 1, unit: 'pcs' });
+        this.form.reset({ discipline: this.parent()?.discipline ?? 'mechanical', ownerId: this.parent()?.ownerId ?? '', quantity: 1, unit: 'pcs' });
       }
     });
   }
@@ -103,7 +116,7 @@ export class AddComponentDialog {
       this.toast.error('رمز الجزء مستخدم مسبقاً', 'يجب أن يكون معرف الجزء فريداً');
       return;
     }
-    const node = this.bom.addChild(this.parentId(), { ...value, code });
+    const node = this.bom.addChild(this.parentId(), { ...value, code, ownerId: value.ownerId || null });
     this.toast.success('تمت إضافة المكون', `${node.code} — ${node.name}`);
     this.open.set(false);
     this.created.emit(node);

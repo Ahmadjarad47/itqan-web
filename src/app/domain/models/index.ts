@@ -11,3 +11,4 @@ export * from './organization';
 export * from './task';
 export * from './rbac';
 export * from './custom-field';
+export * from './program';

@@ -109,7 +109,7 @@
 </section>
 
 <app-modal [(open)]="dialogOpen" [title]="editingId() ? 'تعديل بيانات المورد' : 'مورد جديد'" width="600px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="supplier-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="save()" id="supplier-form" [appDraft]="'supplier:' + (editingId() ?? 'new')" [draftActive]="dialogOpen()">
     <label class="field span-full">
       <span class="field__label">اسم المورد *</span>
       <input class="input" formControlName="name" />

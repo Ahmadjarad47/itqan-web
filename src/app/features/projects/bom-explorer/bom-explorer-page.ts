@@ -13,6 +13,10 @@ import { ProgressBar, ProgressRing } from '@shared/ui/progress/progress';
 import { AddComponentDialog } from '../shared/add-component-dialog';
 import { DecisionBadge } from '../shared/decision-badge';
 import { BomDiagram } from '../bom-diagram/bom-diagram';
+import { NodeActions } from '../shared/node-actions';
+import { ProjectModelsPanel } from '../hierarchy/project-models-panel';
+import { NodeTasksDialog } from '../shared/node-tasks-dialog';
+import { EmployeeStore } from '@application/state/organization.store';
 
 const CLICK_DELAY_MS = 230;
 
@@ -29,6 +33,9 @@ const CLICK_DELAY_MS = 230;
     EmptyState,
     AddComponentDialog,
     BomDiagram,
+    NodeActions,
+    NodeTasksDialog,
+    ProjectModelsPanel,
     MoneyPipe,
     NumPipe,
   ],
@@ -41,6 +48,7 @@ export class BomExplorerPage {
   private readonly projects = inject(ProjectStore);
   protected readonly bom = inject(BomStore);
   protected readonly insights = inject(ProjectInsightsQuery);
+  protected readonly employees = inject(EmployeeStore);
 
   /** Route param and query param bound through component input binding. */
   readonly projectId = input.required<EntityId>();
@@ -50,6 +58,8 @@ export class BomExplorerPage {
   protected readonly view = signal<'diagram' | 'cards'>('diagram');
   protected readonly adding = signal(false);
   protected readonly filter = signal('');
+  protected readonly tasksOpen = signal(false);
+  protected readonly tasksNodeId = signal<EntityId | null>(null);
   private clickTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly project = computed(() => this.projects.find(this.projectId()));
@@ -110,6 +120,12 @@ export class BomExplorerPage {
     const parent = this.current()?.parentId;
     if (parent) this.drill(parent);
     else void this.router.navigate(['/projects']);
+  }
+
+  protected showTasks(nodeId: EntityId): void {
+    clearTimeout(this.clickTimer);
+    this.tasksNodeId.set(nodeId);
+    this.tasksOpen.set(true);
   }
 
   protected openDetail(nodeId: EntityId): void {

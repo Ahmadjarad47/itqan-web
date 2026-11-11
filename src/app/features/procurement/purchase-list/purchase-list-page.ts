@@ -15,6 +15,7 @@ import {
   isPurchaseCompleted,
   purchaseProgress,
   purchaseStatusLabel,
+  researchDays,
   todayIso,
 } from '@domain/rules';
 import { ArDatePipe, MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
@@ -36,10 +37,11 @@ const SEGMENTS: { key: Segment; label: string; test: (r: PurchaseRequest, today:
   { key: 'completed', label: 'مستلمة', test: (r) => isPurchaseCompleted(r) },
   { key: 'standalone', label: 'شراء مستقل', test: (r) => r.projectId === null },
 ];
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-purchase-list-page',
-  imports: [ReactiveFormsModule, RouterLink, CanDirective, PageHeader, StatCard, Icon, Modal, EmptyState, ProgressBar, StageDots, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [ReactiveFormsModule, FormDraft, RouterLink, CanDirective, PageHeader, StatCard, Icon, Modal, EmptyState, ProgressBar, StageDots, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './purchase-list-page.html',
   styleUrl: './purchase-list-page.scss',
@@ -89,6 +91,7 @@ export class PurchaseListPage {
         status: purchaseStatusLabel(request),
         progress: purchaseProgress(request),
         delay: etaDelayDays(request, this.today),
+        research: researchDays(request, this.today),
         completed: isPurchaseCompleted(request),
       }));
   });

@@ -7,6 +7,8 @@ import {
   EmployeeRepository,
   MaterialRepository,
   OperationRepository,
+  ProgramRepository,
+  ProjectModelRepository,
   ProjectRepository,
   PurchaseRepository,
   Repository,
@@ -17,7 +19,7 @@ import {
   WorkstationRepository,
 } from '@domain/ports/repositories';
 import { LocalStorageRepository } from './persistence/local-storage.repository';
-import { SeedData, seedData } from './seed/seed-data';
+import type { SeedData } from './seed/seed-data';
 
 type RepositoryToken<T extends Entity> = abstract new () => Repository<T>;
 
@@ -27,7 +29,11 @@ function localRepository<T extends Entity>(
 ): Provider {
   return {
     provide: token,
-    useFactory: () => new LocalStorageRepository<T>(collection, () => seedData()[collection] as unknown as T[]),
+    useFactory: () =>
+      new LocalStorageRepository<T>(collection, () =>
+        // The seed dataset is only downloaded the first time the browser has no data.
+        import('./seed/seed-data').then((m) => m.seedData()[collection] as unknown as T[]),
+      ),
   };
 }
 
@@ -47,5 +53,7 @@ export function provideInfrastructure(): EnvironmentProviders {
     localRepository(TaskRepository, 'tasks'),
     localRepository(RoleRepository, 'roles'),
     localRepository(CustomFieldRepository, 'customFields'),
+    localRepository(ProgramRepository, 'programs'),
+    localRepository(ProjectModelRepository, 'models'),
   ]);
 }

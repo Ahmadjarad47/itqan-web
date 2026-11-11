@@ -26,10 +26,11 @@ import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { Icon } from '@shared/ui/icon/icon';
 import { Modal } from '@shared/ui/modal/modal';
 import { PageHeader } from '@shared/ui/page-header/page-header';
+import { FormDraft } from '@shared/ui/form-draft/form-draft';
 
 @Component({
   selector: 'app-suppliers-page',
-  imports: [ReactiveFormsModule, RouterLink, CanDirective, CustomFieldsForm, PageHeader, Icon, Modal, Avatar, EmptyState],
+  imports: [ReactiveFormsModule, FormDraft, RouterLink, CanDirective, CustomFieldsForm, PageHeader, Icon, Modal, Avatar, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './suppliers-page.html',
   styleUrl: './suppliers-page.scss',

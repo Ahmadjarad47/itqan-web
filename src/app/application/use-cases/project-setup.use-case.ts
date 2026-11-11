@@ -3,6 +3,7 @@ import { BomNode, Discipline, EntityId, IsoDate, Project } from '@domain/models'
 import { todayIso } from '@domain/rules';
 import { newId } from '../state/entity-store';
 import { BomStore } from '../state/bom.store';
+import { ProjectModelStore } from '../state/program.store';
 import { ProjectStore } from '../state/project.store';
 import { PurchaseStore } from '../state/purchase.store';
 import { RoutingStore } from '../state/routing.store';
@@ -12,6 +13,7 @@ export interface ProjectDraft {
   readonly code: string;
   readonly name: string;
   readonly customer: string;
+  readonly programId: EntityId | null;
   readonly productionQuantity: number;
   readonly dueDate: IsoDate;
   readonly discipline: Discipline;
@@ -26,6 +28,7 @@ export class ProjectSetupUseCase {
   private readonly routing = inject(RoutingStore);
   private readonly tasks = inject(TaskStore);
   private readonly purchases = inject(PurchaseStore);
+  private readonly models = inject(ProjectModelStore);
 
   /** A project is created together with its level 0 node (the end product). */
   create(draft: ProjectDraft): Project {
@@ -44,6 +47,7 @@ export class ProjectSetupUseCase {
       code: draft.code,
       name: draft.name,
       customer: draft.customer,
+      programId: draft.programId,
       rootNodeId: root.id,
       productionQuantity: Math.max(1, draft.productionQuantity),
       dueDate: draft.dueDate,
@@ -72,6 +76,7 @@ export class ProjectSetupUseCase {
     const project = this.projects.find(projectId);
     const root = this.bom.find(project?.rootNodeId);
     if (root) this.removeComponent(root);
+    this.models.removeProject(projectId);
     this.projects.remove(projectId);
   }
 }

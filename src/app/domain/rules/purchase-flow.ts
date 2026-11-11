@@ -1,4 +1,4 @@
-import { IsoDate, PurchaseRequest, PurchaseStage, PurchaseStageKey } from '../models';
+import { IsoDate, PurchaseRequest, PurchaseStage, PurchaseStageKey, SupplierContact, SupplierQuote } from '../models';
 import { diffDays } from './dates';
 
 export interface StageDefinition {
@@ -23,7 +23,7 @@ export const PURCHASE_STAGES: readonly StageDefinition[] = [
 ];
 
 export function createPurchaseStages(): PurchaseStage[] {
-  return PURCHASE_STAGES.map(({ key }) => ({ key, done: false, date: null, note: '', attachments: [] }));
+  return PURCHASE_STAGES.map(({ key }) => ({ key, done: false, date: null, startDate: null, note: '', attachments: [] }));
 }
 
 export function stageDefinition(key: PurchaseStageKey): StageDefinition {
@@ -75,6 +75,15 @@ export function canToggleStage(request: PurchaseRequest, key: PurchaseStageKey):
   if (index > 0 && !request.stages[index - 1].done) {
     return { allowed: false, reason: 'يجب إكمال المرحلة السابقة أولاً' };
   }
+  if (key === 'marketResearch' && !stage.startDate) {
+    return { allowed: false, reason: 'حدد تاريخ بداية البحث أولاً' };
+  }
+  if (key === 'rfqSent' && !request.contacts.length) {
+    return { allowed: false, reason: 'سجّل مورداً واحداً على الأقل تم التواصل معه' };
+  }
+  if (key === 'optionsPresented' && !request.quotes.length) {
+    return { allowed: false, reason: 'أدخل عرض سعر واحداً على الأقل' };
+  }
   if (key === 'mcdmDecision' && !request.supplierId) {
     return { allowed: false, reason: 'اعتمد مورداً من مصفوفة القرار أولاً' };
   }
@@ -88,6 +97,27 @@ export function canToggleStage(request: PurchaseRequest, key: PurchaseStageKey):
     return { allowed: false, reason: 'لا يُستلم إلا المنتج ذو نتيجة الجودة الإيجابية' };
   }
   return { allowed: true };
+}
+
+/**
+ * Days spent searching the market for the item: from the research start until it was
+ * completed, or until today while still running. Null when the search has not started.
+ */
+export function researchDays(request: PurchaseRequest, today: IsoDate): number | null {
+  const stage = findStage(request, 'marketResearch');
+  if (!stage?.startDate) return null;
+  const end = stage.done && stage.date ? stage.date : today;
+  return Math.max(0, diffDays(stage.startDate, end));
+}
+
+/** A contact whose expected reply date passed without a quotation. */
+export function isContactOverdue(contact: SupplierContact, today: IsoDate): boolean {
+  return !contact.replied && !!contact.expectedReplyDate && contact.expectedReplyDate < today;
+}
+
+/** Total landed cost of a quotation for the requested quantity. */
+export function quoteTotal(quote: SupplierQuote, quantity: number): number {
+  return quote.unitPrice * quantity + (quote.shippingCost || 0);
 }
 
 /** Delay in days against the planned ETA (until delivery, or until today while still open). */

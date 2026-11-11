@@ -17,9 +17,44 @@ export type PurchaseStageKey =
 export interface PurchaseStage {
   readonly key: PurchaseStageKey;
   readonly done: boolean;
+  /** Completion date of the stage (for market research: the end of the search). */
   readonly date: IsoDate | null;
+  /** When work on the stage started (used to measure the market-research duration). */
+  readonly startDate: IsoDate | null;
   readonly note: string;
   readonly attachments: readonly Attachment[];
+}
+
+export type ContactChannel = 'email' | 'phone' | 'whatsapp' | 'visit' | 'portal' | 'other';
+
+export const CONTACT_CHANNEL_LABELS: Record<ContactChannel, string> = {
+  email: 'بريد إلكتروني',
+  phone: 'اتصال هاتفي',
+  whatsapp: 'واتساب',
+  visit: 'زيارة',
+  portal: 'منصة / موقع المورد',
+  other: 'أخرى',
+};
+
+export const CONTACT_CHANNEL_ICONS: Record<ContactChannel, string> = {
+  email: 'mail',
+  phone: 'phone',
+  whatsapp: 'message',
+  visit: 'building',
+  portal: 'external',
+  other: 'more',
+};
+
+/** A supplier that was asked for a price quotation during the RFQ stage. */
+export interface SupplierContact {
+  readonly id: EntityId;
+  readonly supplierId: EntityId;
+  readonly contactedAt: IsoDate;
+  readonly channel: ContactChannel;
+  /** Date the supplier is expected to reply with the price quotation. */
+  readonly expectedReplyDate: IsoDate | null;
+  readonly note: string;
+  readonly replied: boolean;
 }
 
 export interface SupplierQuote {
@@ -28,6 +63,13 @@ export interface SupplierQuote {
   readonly unitPrice: number;
   readonly leadTimeDays: number;
   readonly note: string;
+  readonly receivedAt: IsoDate | null;
+  readonly channel: ContactChannel;
+  /** Shipping / extra charges for the whole order. */
+  readonly shippingCost: number;
+  readonly paymentTerms: string;
+  readonly warranty: string;
+  readonly validUntil: IsoDate | null;
 }
 
 export interface McdmCriterion {
@@ -65,6 +107,7 @@ export interface PurchaseRequest extends Entity, HasCustomFields {
   readonly supplierId: EntityId | null;
   readonly unitPrice: number | null;
   readonly stages: readonly PurchaseStage[];
+  readonly contacts: readonly SupplierContact[];
   readonly quotes: readonly SupplierQuote[];
   readonly mcdm: McdmMatrix;
   readonly eta: IsoDate | null;

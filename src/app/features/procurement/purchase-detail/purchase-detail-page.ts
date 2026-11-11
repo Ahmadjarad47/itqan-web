@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthorizationService } from '@application/auth/authorization.service';
 import { BomStore } from '@application/state/bom.store';
@@ -27,6 +27,7 @@ import {
   PURCHASE_STAGES,
   purchaseProgress,
   purchaseStatusLabel,
+  researchDays,
   todayIso,
 } from '@domain/rules';
 import { ArDatePipe, MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
@@ -36,12 +37,14 @@ import { AttachmentList } from '@shared/ui/file-drop/attachment-list';
 import { FileDrop, RejectedFile } from '@shared/ui/file-drop/file-drop';
 import { Icon } from '@shared/ui/icon/icon';
 import { ProgressRing } from '@shared/ui/progress/progress';
+import { ContactsPanel } from './contacts-panel';
 import { McdmPanel } from './mcdm-panel';
+import { OptionsReport } from './options-report';
 import { QuotesPanel } from './quotes-panel';
 
 @Component({
   selector: 'app-purchase-detail-page',
-  imports: [RouterLink, CanDirective, CustomFieldsForm, Icon, ProgressRing, FileDrop, AttachmentList, EmptyState, QuotesPanel, McdmPanel, MoneyPipe, NumPipe, ArDatePipe],
+  imports: [RouterLink, CanDirective, CustomFieldsForm, Icon, ProgressRing, FileDrop, AttachmentList, EmptyState, QuotesPanel, ContactsPanel, OptionsReport, McdmPanel, MoneyPipe, NumPipe, ArDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './purchase-detail-page.html',
   styleUrl: './purchase-detail-page.scss',
@@ -76,6 +79,8 @@ export class PurchaseDetailPage {
   protected readonly currentIndex = computed(() => (this.request() ? currentStageIndex(this.request()!) : 0));
   protected readonly progress = computed(() => (this.request() ? purchaseProgress(this.request()!) : 0));
   protected readonly status = computed(() => (this.request() ? purchaseStatusLabel(this.request()!) : ''));
+  protected readonly research = computed(() => (this.request() ? researchDays(this.request()!, this.today) : null));
+  protected readonly decisionView = signal<'report' | 'matrix'>('report');
   protected readonly delay = computed(() => (this.request() ? etaDelayDays(this.request()!, this.today) : 0));
 
   /** The open stage follows the flow, but the user can expand any stage. */
@@ -109,6 +114,10 @@ export class PurchaseDetailPage {
 
   protected setStageDate(key: PurchaseStageKey, date: string): void {
     this.purchases.updateStage(this.requestId(), key, { date: date || null });
+  }
+
+  protected setResearchStart(date: string): void {
+    this.purchases.updateStage(this.requestId(), 'marketResearch', { startDate: date || null });
   }
 
   protected setStageNote(key: PurchaseStageKey, note: string): void {

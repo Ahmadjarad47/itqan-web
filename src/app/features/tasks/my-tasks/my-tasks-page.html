@@ -37,10 +37,13 @@
                   <span class="badge badge--danger">متأخرة</span>
                 }
                 <span class="spacer"></span>
-                <span class="ltr subtle">{{ v.project?.code }}</span>
+                <span class="badge kind" [class]="'badge kind kind--' + v.task.kind">{{ v.kindLabel }}</span>
               </div>
-              <h3>{{ v.operation?.sequence }} — {{ v.operation?.name }}</h3>
-              <p class="muted">{{ v.node?.name }}</p>
+              <h3>{{ v.title }}</h3>
+              <p class="muted">{{ v.context }}</p>
+              @if (v.task.description) {
+                <p class="task__desc">{{ v.task.description }}</p>
+              }
               <div class="task__dates">
                 <app-icon name="calendar" [size]="13" />
                 {{ v.task.start | arDate: 'short' }} ← {{ v.task.end | arDate: 'short' }}
@@ -65,6 +68,14 @@
                 }
               }
               <div class="task__actions">
+                <button type="button" class="btn btn--sm btn--ghost chat-btn" [class.chat-btn--new]="unread(v.task) > 0" (click)="openChat(v.task.id)">
+                  <app-icon name="message" [size]="14" /> محادثة
+                  @if (unread(v.task); as n) {
+                    <span class="badge badge--danger num">{{ n }}</span>
+                  } @else if (v.task.messages.length) {
+                    <span class="subtle num">({{ v.task.messages.length }})</span>
+                  }
+                </button>
                 @switch (col.status) {
                   @case ('sent') {
                     <button type="button" class="btn btn--sm btn--primary" (click)="accept(v.task.id)"><app-icon name="check" [size]="14" /> قبول</button>
@@ -95,7 +106,7 @@
         @for (v of returned(); track v.task.id) {
           <div class="returned__item">
             <span class="code">{{ v.task.number }}</span>
-            <span>{{ v.operation?.name }} — {{ v.node?.name }}</span>
+            <span>{{ v.title }} — {{ v.context }}</span>
             <span class="badge badge--danger">{{ v.task.rejectReason ? rejectLabels[v.task.rejectReason] : '' }}</span>
           </div>
         }
@@ -122,7 +133,7 @@
     </ng-container>
   </app-modal>
 
-  <app-modal [(open)]="progressOpen" title="إدخال التطورات أثناء العملية" [subtitle]="progressId() ? progressTask().operation?.name ?? '' : ''" width="460px">
+  <app-modal [(open)]="progressOpen" title="إدخال التطورات أثناء العملية" [subtitle]="progressId() ? progressTask().title : ''" width="460px">
     <div class="form-grid">
       <label class="field">
         <span class="field__label">الكمية المكتملة</span>
@@ -144,6 +155,11 @@
       <button type="button" class="btn" (click)="progressOpen.set(false)">إلغاء</button>
       <button type="button" class="btn btn--primary" (click)="saveProgress()"><app-icon name="check" [size]="16" /> حفظ</button>
     </ng-container>
+  </app-modal>
+  <app-modal [(open)]="chatOpen" [title]="chatView()?.title ?? ''" [subtitle]="'المحادثة مع ' + (chatView()?.manager?.name ?? 'المدير المسؤول')" width="560px">
+    @if (chatId(); as id) {
+      <app-task-chat [taskId]="id" />
+    }
   </app-modal>
 } @else {
   <app-page-header title="مهامي — شاشة الموظف" subtitle="أنت مسجّل حالياً كمدير. اختر موظفاً لمحاكاة لوحة مهامه الشخصية." eyebrow="شاشة الموظف" icon="user-check" />

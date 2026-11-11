@@ -6,6 +6,7 @@ import { BomStore } from '@application/state/bom.store';
 import { InventoryStore } from '@application/state/inventory.store';
 import { ProjectStore } from '@application/state/project.store';
 import { RoutingStore, WorkstationStore } from '@application/state/routing.store';
+import { DepartmentStore } from '@application/state/organization.store';
 import { ProductionUseCase } from '@application/use-cases/production.use-case';
 import { CanDirective } from '@core/auth/can.directive';
 import { ConfirmService } from '@core/feedback/confirm.service';
@@ -36,6 +37,7 @@ export class RoutingEditorPage {
   private readonly confirm = inject(ConfirmService);
   protected readonly bom = inject(BomStore);
   protected readonly workstations = inject(WorkstationStore);
+  protected readonly departments = inject(DepartmentStore);
   protected readonly insights = inject(ProjectInsightsQuery);
 
   readonly nodeId = input.required<EntityId>();

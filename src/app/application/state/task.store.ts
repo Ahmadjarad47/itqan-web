@@ -1,12 +1,26 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { EntityId, RejectReason, TaskProgressEntry, TaskStatus, WorkTask } from '@domain/models';
 import { TaskRepository } from '@domain/ports/repositories';
-import { canTransition, nowIso } from '@domain/rules';
+import { canTransition, nowIso, unreadMessages } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 export type NewTask = Pick<
   WorkTask,
-  'projectId' | 'nodeId' | 'operationId' | 'departmentId' | 'assigneeId' | 'start' | 'end' | 'notes' | 'targetQuantity'
+  | 'kind'
+  | 'projectId'
+  | 'nodeId'
+  | 'operationId'
+  | 'purchaseId'
+  | 'purchaseStage'
+  | 'title'
+  | 'description'
+  | 'createdById'
+  | 'departmentId'
+  | 'assigneeId'
+  | 'start'
+  | 'end'
+  | 'notes'
+  | 'targetQuantity'
 >;
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +35,20 @@ export class TaskStore extends EntityStore<WorkTask> {
     return this.active().filter((task) => task.assigneeId === employeeId);
   }
 
+  protected override normalize(task: WorkTask): WorkTask {
+    return {
+      ...task,
+      kind: task.kind ?? (task.operationId ? 'operation' : 'custom'),
+      purchaseId: task.purchaseId ?? null,
+      purchaseStage: task.purchaseStage ?? null,
+      title: task.title ?? '',
+      description: task.description ?? '',
+      createdById: task.createdById ?? null,
+      messages: task.messages ?? [],
+      chatReadAt: task.chatReadAt ?? {},
+    };
+  }
+
   create(data: NewTask): WorkTask {
     const at = nowIso();
     return this.insert({
@@ -33,6 +61,8 @@ export class TaskStore extends EntityStore<WorkTask> {
       rejectReason: null,
       rejectNote: '',
       progress: [],
+      messages: [],
+      chatReadAt: {},
       history: [{ status: 'sent', at, note: '' }],
       createdAt: at,
     });
@@ -68,6 +98,22 @@ export class TaskStore extends EntityStore<WorkTask> {
     }));
   }
 
+  postMessage(id: EntityId, authorId: EntityId, text: string): void {
+    const body = text.trim();
+    if (!body) return;
+    this.modify(id, (task) => ({
+      ...task,
+      messages: [...task.messages, { id: newId('tm'), authorId, at: nowIso(), text: body }],
+      chatReadAt: { ...task.chatReadAt, [authorId]: nowIso() },
+    }));
+  }
+
+  markChatRead(id: EntityId, userId: EntityId): void {
+    const task = this.find(id);
+    if (!task || !userId || unreadMessages(task, userId) === 0) return;
+    this.modify(id, { chatReadAt: { ...task.chatReadAt, [userId]: nowIso() } });
+  }
+
   markSeen(id: EntityId): void {
     if (this.find(id)?.seenByAssignee === false) this.modify(id, { seenByAssignee: true });
   }
@@ -78,6 +124,6 @@ export class TaskStore extends EntityStore<WorkTask> {
 
   removeForNodes(nodeIds: readonly EntityId[]): void {
     const ids = new Set(nodeIds);
-    this.removeWhere((task) => ids.has(task.nodeId));
+    this.removeWhere((task) => !!task.nodeId && ids.has(task.nodeId));
   }
 }

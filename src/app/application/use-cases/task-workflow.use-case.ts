@@ -36,7 +36,7 @@ export class TaskWorkflowUseCase {
   complete(taskId: EntityId): boolean {
     const task = this.tasks.find(taskId);
     if (!task || !this.tasks.transition(taskId, 'completed')) return false;
-    this.production.setCompleted(task.operationId, true);
+    if (task.operationId) this.production.setCompleted(task.operationId, true);
     return true;
   }
 }

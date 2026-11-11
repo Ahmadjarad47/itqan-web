@@ -13,6 +13,8 @@ export interface Project extends Entity {
   readonly code: string;
   readonly name: string;
   readonly customer: string;
+  /** Program the project belongs to (null when not grouped under a program). */
+  readonly programId: EntityId | null;
   /** Level 0 node: the shippable end product. */
   readonly rootNodeId: EntityId;
   /** Number of end-product units to be produced. */

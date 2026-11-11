@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withViewTransitions } from '@angular/router';
+import { PreloadAllModules, provideRouter, withComponentInputBinding, withInMemoryScrolling, withPreloading, withViewTransitions } from '@angular/router';
 import { loadApplicationState } from '@application/bootstrap';
 import { provideInfrastructure } from '@infrastructure/provide-infrastructure';
 import { routes } from './app.routes';
@@ -19,6 +19,8 @@ export const appConfig: ApplicationConfig = {
         },
       }),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+      // Fetch every screen's code in the background after start-up so navigation is instant.
+      withPreloading(PreloadAllModules),
     ),
     provideInfrastructure(),
     provideAppInitializer(loadApplicationState),

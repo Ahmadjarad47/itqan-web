@@ -131,7 +131,7 @@
 </section>
 
 <app-modal [(open)]="creating" title="مادة جديدة" width="600px">
-  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="material-form">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="create()" id="material-form" [appDraft]="'material:new'" [draftActive]="creating()">
     <label class="field">
       <span class="field__label">الرمز *</span>
       <input class="input ltr" formControlName="code" />

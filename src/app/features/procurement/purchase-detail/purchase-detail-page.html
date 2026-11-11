@@ -25,6 +25,7 @@
     <dl class="facts">
       <div><dt>الكمية</dt><dd class="num">{{ r.quantity | num }} {{ unitLabels[r.unit] }}</dd></div>
       <div><dt>المورد المعتمد</dt><dd>{{ supplier()?.name ?? '—' }}</dd></div>
+      <div><dt>مدة البحث في السوق</dt><dd class="num">{{ research() === null ? '—' : research() + ' يوم' }}</dd></div>
       <div><dt>سعر الوحدة</dt><dd class="num">{{ r.unitPrice | money }}</dd></div>
       <div><dt>القيمة الإجمالية</dt><dd class="num">{{ r.unitPrice === null ? '—' : (r.unitPrice * r.quantity | money) }}</dd></div>
       <div>
@@ -103,17 +104,55 @@
           @if (openStage() === def.key) {
             <fieldset class="guard stage__body" [disabled]="!canManage()" animate.enter="enter-fade">
               @switch (def.key) {
+                @case ('marketResearch') {
+                  <div class="research">
+                    <label class="field">
+                      <span class="field__label">تاريخ بداية البحث</span>
+                      <span class="research__start">
+                        <input class="input input--sm" type="date" [value]="stage.startDate ?? ''" (change)="setResearchStart($any($event.target).value)" />
+                        @if (!stage.startDate) {
+                          <button type="button" class="btn btn--sm btn--primary" title="احتساب تاريخ البداية اليوم" (click)="setResearchStart(today)">
+                            <app-icon name="check" [size]="14" /> بدء اليوم
+                          </button>
+                        }
+                      </span>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">تاريخ انتهاء البحث</span>
+                      <input class="input input--sm" type="date" [value]="stage.date ?? ''" [min]="stage.startDate ?? ''" (change)="setStageDate(def.key, $any($event.target).value)" />
+                    </label>
+                    <div class="delay-box research__days" [class.late]="(research() ?? 0) > 14">
+                      <app-icon name="search" [size]="20" />
+                      <span>
+                        <strong class="num">{{ research() === null ? '—' : research() + ' يوم' }}</strong>
+                        <small>{{ stage.done ? 'مدة البحث الكلية' : stage.startDate ? 'مدة البحث حتى الآن' : 'لم يبدأ البحث بعد' }}</small>
+                      </span>
+                    </div>
+                  </div>
+                  <p class="field__hint">تساعد مدة البحث على معرفة مدى صعوبة توفر كل عنصر في السوق.</p>
+                }
                 @case ('rfqSent') {
-                  <h4 class="section-title">عروض الموردين</h4>
-                  <app-quotes-panel [request]="r" />
+                  <h4 class="section-title">الموردون الذين تم التواصل معهم لطلب التسعير</h4>
+                  <app-contacts-panel [request]="r" />
                 }
                 @case ('optionsPresented') {
-                  <h4 class="section-title">قائمة العروض البديلة</h4>
+                  <h4 class="section-title">عروض الأسعار الواردة — مرتبة ومفصّلة</h4>
                   <app-quotes-panel [request]="r" />
                 }
                 @case ('mcdmDecision') {
-                  <h4 class="section-title">مصفوفة اتخاذ القرار متعدد المعايير</h4>
-                  <app-mcdm-panel [request]="r" />
+                  <div class="row wrap decision-head">
+                    <h4 class="section-title">{{ decisionView() === 'matrix' ? 'مصفوفة اتخاذ القرار متعدد المعايير' : 'تقرير الخيارات' }}</h4>
+                    <span class="spacer"></span>
+                    <div class="segmented">
+                      <button type="button" [class.active]="decisionView() === 'report'" (click)="decisionView.set('report')"><app-icon name="file" [size]="14" /> تقرير الخيارات</button>
+                      <button type="button" [class.active]="decisionView() === 'matrix'" (click)="decisionView.set('matrix')"><app-icon name="scale" [size]="14" /> مصفوفة MCDM</button>
+                    </div>
+                  </div>
+                  @if (decisionView() === 'matrix') {
+                    <app-mcdm-panel [request]="r" />
+                  } @else {
+                    <app-options-report [request]="r" />
+                  }
                 }
                 @case ('leadTime') {
                   <div class="form-grid">
@@ -161,10 +200,12 @@
               }
 
               <div class="stage__grid">
-                <label class="field">
-                  <span class="field__label">التاريخ</span>
-                  <input class="input input--sm" type="date" [value]="stage.date ?? ''" (change)="setStageDate(def.key, $any($event.target).value)" />
-                </label>
+                @if (def.key !== 'marketResearch') {
+                  <label class="field">
+                    <span class="field__label">التاريخ</span>
+                    <input class="input input--sm" type="date" [value]="stage.date ?? ''" (change)="setStageDate(def.key, $any($event.target).value)" />
+                  </label>
+                }
                 <label class="field">
                   <span class="field__label">ملاحظات</span>
                   <input class="input input--sm" [value]="stage.note" (change)="setStageNote(def.key, $any($event.target).value)" />
@@ -190,6 +231,8 @@
                 >
                   @if (stage.done) {
                     <app-icon name="undo" [size]="14" /> إعادة فتح المرحلة
+                  } @else if (def.key === 'marketResearch') {
+                    <app-icon name="check" [size]="14" /> إتمام البحث
                   } @else {
                     <app-icon name="check" [size]="14" /> تأكيد إتمام المرحلة
                   }

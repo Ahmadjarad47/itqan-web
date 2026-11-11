@@ -1,4 +1,4 @@
-import { IsoDate, TaskStatus, WorkTask } from '../models';
+import { EntityId, IsoDate, TaskStatus, WorkTask } from '../models';
 
 const TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
   sent: ['accepted', 'rejected'],
@@ -24,4 +24,10 @@ export function taskProgress(task: WorkTask): number {
 
 export function isTaskOverdue(task: WorkTask, today: IsoDate): boolean {
   return task.status !== 'completed' && task.end < today;
+}
+
+/** Messages written by others since the user last opened the task chat. */
+export function unreadMessages(task: WorkTask, userId: EntityId): number {
+  const readAt = task.chatReadAt[userId] ?? '';
+  return task.messages.filter((m) => m.authorId !== userId && m.at > readAt).length;
 }

@@ -5,6 +5,8 @@ import {
   Employee,
   Material,
   Project,
+  Program,
+  ProjectModel,
   PurchaseRequest,
   Role,
   RoutingOperation,
@@ -17,6 +19,7 @@ import { isPurchaseCompleted, todayIso } from '@domain/rules';
 import { CUSTOM_FIELDS, ROLES } from './access.seed';
 import { DEPARTMENTS, EMPLOYEES, MATERIALS, SUPPLIERS, WORKSTATIONS } from './catalog.seed';
 import { seedOperations } from './production.seed';
+import { seedModels, seedPrograms } from './hierarchy.seed';
 import { seedProjects } from './projects.seed';
 import { seedPurchases } from './procurement.seed';
 import { seedTasks } from './tasks.seed';
@@ -35,6 +38,8 @@ export interface SeedData {
   readonly tasks: WorkTask[];
   readonly roles: Role[];
   readonly customFields: CustomFieldDefinition[];
+  readonly programs: Program[];
+  readonly models: ProjectModel[];
 }
 
 let cached: SeedData | null = null;
@@ -89,6 +94,8 @@ export function seedData(): SeedData {
     tasks: seedTasks(today),
     roles: ROLES,
     customFields: CUSTOM_FIELDS,
+    programs: seedPrograms(today),
+    models: seedModels(today),
   };
   return cached;
 }

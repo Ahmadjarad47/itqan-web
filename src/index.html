@@ -14,8 +14,47 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Apply the saved theme before first paint so the boot loader matches it.
+      try {
+        var t = localStorage.getItem('erp101.theme');
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <style>
+      /* Boot loader: painted instantly, replaced by Angular once the app is ready. */
+      .boot { --b-bg: #f5f4ef; --b-card: #ffffff; --b-line: #e9e6dc; --b-border: #e4e0d3; --b-shine: rgba(255, 255, 255, 0.7);
+        display: flex; min-height: 100vh; background: var(--b-bg); font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif; }
+      [data-theme='dark'] .boot { --b-bg: #0b1514; --b-card: #111e1c; --b-line: #1b2b28; --b-border: #22332f; --b-shine: rgba(255, 255, 255, 0.06); }
+      .boot__side { width: 272px; flex: none; background: #002623; padding: 24px 18px; display: flex; flex-direction: column; gap: 14px; }
+      .boot__side i { display: block; height: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); }
+      .boot__side i:first-child { height: 46px; width: 70%; margin-bottom: 18px; border-radius: 12px; }
+      .boot__main { flex: 1; padding: 96px 28px 28px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; align-content: start; }
+      .boot__card { background: var(--b-card); border: 1px solid var(--b-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+      .boot__row { display: flex; gap: 10px; align-items: center; }
+      .boot__row > div { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+      .boot b, .boot s { display: block; position: relative; overflow: hidden; background: var(--b-line); border-radius: 6px; height: 12px; text-decoration: none; }
+      .boot s { width: 48px; height: 48px; border-radius: 50%; flex: none; }
+      .boot b::after, .boot s::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, var(--b-shine), transparent); animation: boot-shine 1.3s ease-in-out infinite; }
+      @keyframes boot-shine { to { transform: translateX(100%); } }
+      @media (max-width: 1100px) { .boot__side { display: none; } }
+      @media (prefers-reduced-motion: reduce) { .boot b::after, .boot s::after { animation: none; } }
+    </style>
   </head>
   <body>
-    <app-root></app-root>
+    <app-root>
+      <div class="boot" role="status" aria-label="جارٍ التحميل…">
+        <aside class="boot__side"><i></i><i></i><i></i><i></i><i></i><i></i></aside>
+        <div class="boot__main">
+          <div class="boot__card"><div class="boot__row"><s></s><div><b style="width: 48%"></b><b></b></div></div><b></b><b style="width: 92%"></b></div>
+          <div class="boot__card"><div class="boot__row"><s></s><div><b style="width: 48%"></b><b></b></div></div><b></b><b style="width: 92%"></b></div>
+          <div class="boot__card"><div class="boot__row"><s></s><div><b style="width: 48%"></b><b></b></div></div><b></b><b style="width: 92%"></b></div>
+          <div class="boot__card"><div class="boot__row"><s></s><div><b style="width: 48%"></b><b></b></div></div><b></b><b style="width: 92%"></b></div>
+          <div class="boot__card"><div class="boot__row"><s></s><div><b style="width: 48%"></b><b></b></div></div><b></b><b style="width: 92%"></b></div>
+          <div class="boot__card"><div class="boot__row"><s></s><div><b style="width: 48%"></b><b></b></div></div><b></b><b style="width: 92%"></b></div>
+        </div>
+      </div>
+    </app-root>
   </body>
 </html>
