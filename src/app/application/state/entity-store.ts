@@ -41,6 +41,18 @@ export abstract class EntityStore<T extends Entity> {
     return entity;
   }
 
+  /** Inserts new entities and replaces existing ones (matched by id) in one write. */
+  protected upsertMany(entities: readonly T[]): void {
+    if (!entities.length) return;
+    const incoming = new Map(entities.map((entity) => [entity.id, entity]));
+    this.state.update((items) => {
+      const merged = items.map((item) => incoming.get(item.id) ?? item);
+      const known = new Set(items.map((item) => item.id));
+      return [...merged, ...entities.filter((entity) => !known.has(entity.id))];
+    });
+    void this.repository.saveMany(entities);
+  }
+
   protected modify(id: EntityId, change: Partial<T> | ((entity: T) => T)): T | undefined {
     const current = this.find(id);
     if (!current) return undefined;

@@ -10,6 +10,7 @@ import {
   ProgramRepository,
   ProjectModelRepository,
   ProjectRepository,
+  ProjectVersionRepository,
   PurchaseRepository,
   Repository,
   RoleRepository,
@@ -55,5 +56,6 @@ export function provideInfrastructure(): EnvironmentProviders {
     localRepository(CustomFieldRepository, 'customFields'),
     localRepository(ProgramRepository, 'programs'),
     localRepository(ProjectModelRepository, 'models'),
+    localRepository(ProjectVersionRepository, 'versions'),
   ]);
 }

@@ -82,6 +82,16 @@ export class RoutingStore extends EntityStore<RoutingOperation> {
     this.removeWhere((op) => op.id === id);
   }
 
+  /** Writes a batch of operations (cloned routing or restored version). */
+  putMany(operations: readonly RoutingOperation[]): void {
+    this.upsertMany(operations);
+  }
+
+  removeIds(ids: readonly EntityId[]): void {
+    const set = new Set(ids);
+    this.removeWhere((op) => set.has(op.id));
+  }
+
   removeForNodes(nodeIds: readonly EntityId[]): void {
     const ids = new Set(nodeIds);
     this.removeWhere((op) => ids.has(op.nodeId));

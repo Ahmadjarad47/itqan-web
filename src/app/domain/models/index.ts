@@ -12,3 +12,4 @@ export * from './task';
 export * from './rbac';
 export * from './custom-field';
 export * from './program';
+export * from './project-version';

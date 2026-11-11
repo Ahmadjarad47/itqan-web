@@ -9,6 +9,7 @@ import {
   Program,
   Project,
   ProjectModel,
+  ProjectVersion,
   PurchaseRequest,
   Role,
   RoutingOperation,
@@ -44,3 +45,4 @@ export abstract class RoleRepository extends Repository<Role> {}
 export abstract class CustomFieldRepository extends Repository<CustomFieldDefinition> {}
 export abstract class ProgramRepository extends Repository<Program> {}
 export abstract class ProjectModelRepository extends Repository<ProjectModel> {}
+export abstract class ProjectVersionRepository extends Repository<ProjectVersion> {}

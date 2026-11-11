@@ -1,4 +1,5 @@
 import { BomNode, CustomFieldDefinition, formatCustomValue, Material, missingRequiredFields, PurchaseRequest, RoutingOperation, Workstation } from '../models';
+import { cloneSubtree, diffTrees } from './bom-clone';
 import { BomTree } from './bom-tree';
 import { operationUnitCost, rollUpCost } from './cost-rollup';
 import { evaluateMcdm } from './mcdm';
@@ -85,6 +86,47 @@ describe('BomTree', () => {
     expect(tree.level('c')).toBe(3);
     expect(tree.quantityPerEndProduct('c')).toBe(24);
     expect(tree.path('c').map((n) => n.id)).toEqual(['root', 'a', 'b', 'c']);
+  });
+});
+
+describe('cloneSubtree', () => {
+  const nodes = [
+    node('root', null, { code: 'SRC' }),
+    node('a', 'root', { code: 'SRC-1' }),
+    node('b', 'a', { code: 'SRC-1.1', materials: [{ materialId: 'm', quantity: 2 }] }),
+  ];
+  const operations = [
+    op('a', { id: 'oa', inputs: [{ kind: 'component', refId: 'b', quantity: 1 }], earliestStart: '2026-01-01', latestFinish: '2026-01-03', completed: true, progressPercent: 100 }),
+    op('b', { id: 'ob', inputs: [{ kind: 'material', refId: 'm', quantity: 1 }], earliestStart: '2026-01-05', latestFinish: '2026-01-06' }),
+  ];
+  let seq = 0;
+  const options = { projectId: 'p2', parentId: null, rootCode: 'NEW', includeRouting: true, scheduleFrom: '2026-02-01', today: '2026-02-01', newId: (p: string) => `${p}-${++seq}` };
+
+  it('copies the whole tree with new ids and hierarchical codes', () => {
+    const copy = cloneSubtree('root', { nodes, operations }, options);
+    expect(copy.nodes.map((n) => n.code)).toEqual(['NEW', 'NEW-1', 'NEW-1.1']);
+    expect(copy.nodes.every((n) => n.projectId === 'p2' && !['root', 'a', 'b'].includes(n.id))).toBe(true);
+    expect(copy.nodes[2].parentId).toBe(copy.nodes[1].id);
+    expect(copy.nodes[2].materials).toEqual([{ materialId: 'm', quantity: 2 }]);
+  });
+
+  it('remaps routing references, shifts the schedule and resets execution', () => {
+    const copy = cloneSubtree('root', { nodes, operations }, options);
+    const a = copy.operations.find((o) => o.nodeId === copy.nodeIds.get('a'))!;
+    expect(a.inputs[0].refId).toBe(copy.nodeIds.get('b'));
+    expect(a.earliestStart).toBe('2026-02-01');
+    expect(a.completed).toBe(false);
+    expect(a.progressPercent).toBe(0);
+    expect(copy.operations.find((o) => o.nodeId === copy.nodeIds.get('b'))!.inputs[0].refId).toBe('m');
+    expect(cloneSubtree('a', { nodes, operations }, { ...options, parentId: 'x', rootCode: 'T-3', includeRouting: false }).operations).toEqual([]);
+  });
+
+  it('reports what changed between two states of a tree', () => {
+    const after = [nodes[0], { ...nodes[1], quantity: 3 }, node('c', 'root')];
+    const diff = diffTrees({ nodes, operations }, { nodes: after, operations: [operations[0]] });
+    expect(diff.added.map((n) => n.id)).toEqual(['c']);
+    expect(diff.removed.map((n) => n.id)).toEqual(['b']);
+    expect(diff.changed).toEqual([{ node: after[1], fields: ['quantity'] }]);
   });
 });
 

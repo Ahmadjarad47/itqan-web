@@ -19,6 +19,9 @@
           <span class="level-pill">LEVEL {{ level() }} · {{ levelTitle() }}</span>
           <span class="code">{{ node.code }}</span>
           <app-decision-badge [decision]="node.decision" />
+          @if (latestVersion(); as v) {
+            <button type="button" class="version-pill" (click)="versionsOpen.set(true)" title="إصدارات المشروع"><app-icon name="history" [size]="13" /> v{{ v.number }}</button>
+          }
         </div>
         <h1>{{ node.name }}</h1>
         @if (node.description) {
@@ -34,7 +37,9 @@
         <div class="focus__actions">
           <button type="button" class="btn btn--primary" (click)="openDetail(node.id)"><app-icon name="eye" [size]="16" /> تفاصيل المكون</button>
           <button *appCan="'bom.edit'" type="button" class="btn" (click)="adding.set(true)"><app-icon name="plus" [size]="16" /> إضافة مكون فرعي</button>
+          <button *appCan="'bom.edit'" type="button" class="btn" (click)="cloning.set(true)"><app-icon name="copy" [size]="16" /> استنساخ من مشروع</button>
           <button type="button" class="btn" (click)="showTasks(node.id)"><app-icon name="clipboard" [size]="16" /> المهام الموكلة</button>
+          <button type="button" class="btn" (click)="versionsOpen.set(true)"><app-icon name="history" [size]="16" /> الإصدارات <span class="count num">{{ versionCount() }}</span></button>
           <button type="button" class="btn btn--ghost" (click)="goUp()"><app-icon name="arrow-left" [size]="16" /> {{ level() ? 'المستوى الأعلى' : 'كل المشاريع' }}</button>
         </div>
       </div>
@@ -132,6 +137,8 @@
 
   <app-add-component-dialog [(open)]="adding" [parentId]="node.id" />
   <app-node-tasks-dialog [(open)]="tasksOpen" [nodeId]="tasksNodeId()" />
+  <app-clone-tree-dialog [(open)]="cloning" [targetId]="node.id" />
+  <app-project-versions-dialog [(open)]="versionsOpen" [projectId]="projectId()" />
 } @else {
   <app-empty-state icon="tree" title="المشروع غير موجود" text="ربما تم حذف المشروع أو تغيير الرابط.">
     <a class="btn btn--primary btn--sm" routerLink="/projects">العودة إلى المشاريع</a>

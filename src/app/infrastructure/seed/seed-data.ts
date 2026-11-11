@@ -7,6 +7,7 @@ import {
   Project,
   Program,
   ProjectModel,
+  ProjectVersion,
   PurchaseRequest,
   Role,
   RoutingOperation,
@@ -40,6 +41,7 @@ export interface SeedData {
   readonly customFields: CustomFieldDefinition[];
   readonly programs: Program[];
   readonly models: ProjectModel[];
+  readonly versions: ProjectVersion[];
 }
 
 let cached: SeedData | null = null;
@@ -77,9 +79,12 @@ export function seedData(): SeedData {
     })),
   ];
 
+  const operations = seedOperations(today);
+  const nodesWithFields = nodes.map(withSampleFields);
+
   cached = {
     projects,
-    nodes: nodes.map(withSampleFields),
+    nodes: nodesWithFields,
     materials,
     movements,
     suppliers: SUPPLIERS.map((supplier, i) => ({
@@ -88,7 +93,7 @@ export function seedData(): SeedData {
     })),
     purchases,
     workstations: WORKSTATIONS,
-    operations: seedOperations(today),
+    operations,
     departments: DEPARTMENTS,
     employees: EMPLOYEES,
     tasks: seedTasks(today),
@@ -96,6 +101,8 @@ export function seedData(): SeedData {
     customFields: CUSTOM_FIELDS,
     programs: seedPrograms(today),
     models: seedModels(today),
+    // Versions are snapshots of the user's own edits, so none are seeded.
+    versions: [],
   };
   return cached;
 }

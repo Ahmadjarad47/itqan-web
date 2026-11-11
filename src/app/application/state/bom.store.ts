@@ -94,6 +94,15 @@ export class BomStore extends EntityStore<BomNode> {
     return [...ids];
   }
 
+  /** Writes a batch of nodes (cloned subtree or restored version). */
+  putMany(nodes: readonly BomNode[]): void {
+    this.upsertMany(nodes);
+  }
+
+  forProject(projectId: EntityId): BomNode[] {
+    return this.all().filter((node) => node.projectId === projectId);
+  }
+
   removeProject(projectId: EntityId): void {
     this.removeWhere((node) => node.projectId === projectId);
   }
