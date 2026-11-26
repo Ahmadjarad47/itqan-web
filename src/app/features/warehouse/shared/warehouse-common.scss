@@ -1,0 +1,129 @@
+// Layout helpers shared by the warehouse-management pages.
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+
+  .select {
+    width: auto;
+    min-width: 150px;
+  }
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.pos {
+  color: var(--success);
+}
+
+.neg {
+  color: var(--warning);
+}
+
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+}
+
+.level {
+  &--empty,
+  &--low {
+    color: var(--danger);
+  }
+
+  &--over {
+    color: var(--info);
+  }
+}
+
+.hint-box {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--info-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+
+  app-icon {
+    color: var(--info);
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  &--warning {
+    background: var(--warning-soft);
+
+    app-icon {
+      color: var(--warning);
+    }
+  }
+
+  &--danger {
+    background: var(--danger-soft);
+
+    app-icon {
+      color: var(--danger);
+    }
+  }
+}
+
+.lines {
+  width: 100%;
+
+  .input,
+  .select {
+    min-width: 90px;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

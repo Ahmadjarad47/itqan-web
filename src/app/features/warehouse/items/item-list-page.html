@@ -1,0 +1,147 @@
+<app-page-header
+  title="بطاقات المنتجات"
+  subtitle="إنشاء بطاقات العناصر وإدارتها: التصنيف، الترميز، المواقع، القيم الحرجة، السجل والتكلفة"
+  eyebrow="إدارة المستودعات"
+  icon="package"
+>
+  <button type="button" class="btn" (click)="exportCsv()"><app-icon name="download" [size]="16" /> تصدير</button>
+  <button *appCan="'warehouses.manage'" type="button" class="btn" (click)="listsOpen.set(true)"><app-icon name="list" [size]="16" /> القوائم المنسدلة</button>
+  <button *appCan="'inventory.manage'" type="button" class="btn btn--primary" (click)="creating.set(true)"><app-icon name="plus" [size]="17" /> بطاقة منتج جديدة</button>
+</app-page-header>
+
+@let t = totals();
+<section class="kpis">
+  <app-stat-card label="بطاقات المنتجات" [value]="t.cards" icon="package" />
+  <app-stat-card label="قيمة المخزون" [value]="(t.value | money: true)" icon="coins" tone="accent" />
+  <app-stat-card label="تحت الحد الأدنى" [value]="t.low" icon="alert" [tone]="t.low ? 'danger' : 'success'" />
+  <app-stat-card label="فوق الحد الأقصى" [value]="t.over" icon="layers" [tone]="t.over ? 'info' : 'success'" />
+  <app-stat-card label="برصيد صفري" [value]="t.zero" icon="inbox" tone="warning" />
+</section>
+
+<section class="card">
+  <div class="filters">
+    <div class="toolbar">
+      <div class="search-box">
+        <app-icon name="search" [size]="16" />
+        <input class="input input--sm" placeholder="بحث بالرمز أو الاسم أو الملاحظات" [value]="search()" (input)="search.set($any($event.target).value)" />
+      </div>
+      <select class="select input--sm" (change)="categoryFilter.set($any($event.target).value)">
+        <option value="">كل الفئات</option>
+        @for (o of options.categories(); track o.id) {
+          <option [value]="o.id">{{ o.name }}</option>
+        }
+      </select>
+      <select class="select input--sm" (change)="natureFilter.set($any($event.target).value)">
+        <option value="">كل التصنيفات</option>
+        @for (o of options.natures(); track o.id) {
+          <option [value]="o.id">{{ o.name }}</option>
+        }
+      </select>
+      <select class="select input--sm" (change)="warehouseFilter.set($any($event.target).value)">
+        <option value="">كل المستودعات</option>
+        @for (row of warehouses.tree(); track row.warehouse.id) {
+          <option [value]="row.warehouse.id">{{ row.depth ? '  ↳ ' : '' }}{{ row.warehouse.name }}</option>
+        }
+      </select>
+      <select class="select input--sm" (change)="levelFilter.set($any($event.target).value)">
+        <option value="">كل الحالات</option>
+        <option value="low">تحت الحد الأدنى</option>
+        <option value="empty">نفد</option>
+        <option value="over">فوق الحد الأقصى</option>
+        <option value="ok">ضمن الحدود</option>
+      </select>
+    </div>
+    <label class="sort subtle">
+      ترتيب
+      <select class="select input--sm" (change)="sort.set($any($event.target).value)">
+        <option value="code">الرمز</option>
+        <option value="name">الاسم</option>
+        <option value="stock">الرصيد</option>
+        <option value="value">القيمة</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>العنصر</th>
+          <th>الفئة / التصنيف</th>
+          @for (c of columns(); track c.id) {
+            <th>{{ c.label }}</th>
+          }
+          <th>الرصيد (Min/Max)</th>
+          <th>المواقع</th>
+          <th>تكلفة الوحدة</th>
+          <th>سعر البيع</th>
+          <th>القيمة</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.material.id) {
+          <tr class="clickable" (click)="open(r.material)">
+            <td>
+              <div class="title">
+                <strong>{{ r.material.name }}</strong>
+                <span class="code">{{ r.material.code }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="title">
+                <span>{{ options.name(r.material.categoryId) }}</span>
+                <span class="subtle">{{ options.name(r.material.natureId) }}</span>
+              </div>
+            </td>
+            @for (c of columns(); track c.id) {
+              <td class="muted">{{ format(c, r.material.customFields?.[c.id]) }}</td>
+            }
+            <td>
+              <div class="stock">
+                <span class="num" [class]="'num level--' + r.level"><strong>{{ r.material.stock | num }}</strong> {{ unitLabels[r.material.unit] }}</span>
+                <span class="stock__bar" [class]="'stock__bar stock__bar--' + r.level"><span [style.width.%]="r.ratio * 100"></span></span>
+                <small class="subtle num">{{ r.material.minStock | num }} / {{ r.material.maxStock || '—' }}</small>
+              </div>
+            </td>
+            <td class="num">{{ r.places }}</td>
+            <td class="num">
+              {{ r.material.unitCost | money }}
+              <div class="subtle">{{ r.material.costMethod === 'fifo' ? 'FIFO' : 'متوسط مرجح' }}</div>
+            </td>
+            <td class="num">{{ r.sell | money }}</td>
+            <td class="num"><strong>{{ r.value | money }}</strong></td>
+          </tr>
+        } @empty {
+          <tr><td [attr.colspan]="7 + columns().length"><app-empty-state icon="package" title="لا توجد بطاقات مطابقة" /></td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<app-item-wizard [(open)]="creating" (created)="open($event)" />
+
+<app-modal [(open)]="listsOpen" title="القوائم المنسدلة لبطاقة المنتج" subtitle="الفئات الأساسية والتصنيفات التفصيلية ورموزها المستخدمة في توليد رمز العنصر" width="560px">
+  <div class="segmented">
+    <button type="button" [class.active]="listTab() === 'category'" (click)="listTab.set('category')">{{ listLabels.category }}</button>
+    <button type="button" [class.active]="listTab() === 'nature'" (click)="listTab.set('nature')">{{ listLabels.nature }}</button>
+  </div>
+  <div class="option-list">
+    @for (o of listOptions(); track o.id) {
+      <div class="row option-row">
+        <input class="input input--sm" [value]="o.name" (change)="renameOption(o, $any($event.target).value)" />
+        <input class="input input--sm ltr code-input" maxlength="5" [value]="o.code" (change)="recodeOption(o, $any($event.target).value)" />
+        <span class="subtle nowrap">{{ usage().get(o.id) ?? 0 }} بطاقة</span>
+        <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="removeOption(o)"><app-icon name="trash" [size]="14" /></button>
+      </div>
+    }
+    <div class="row option-row new">
+      <input class="input input--sm" placeholder="خيار جديد" [value]="optionName()" (input)="optionName.set($any($event.target).value)" />
+      <input class="input input--sm ltr code-input" placeholder="رمز" maxlength="5" [value]="optionCode()" (input)="optionCode.set($any($event.target).value)" />
+      <button type="button" class="btn btn--sm btn--primary" [disabled]="!optionName().trim()" (click)="addOption()"><app-icon name="plus" [size]="14" /> إضافة</button>
+    </div>
+  </div>
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="listsOpen.set(false)">إغلاق</button>
+  </ng-container>
+</app-modal>

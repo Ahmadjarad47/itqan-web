@@ -163,32 +163,6 @@
         }
       </select>
     </label>
-    <div class="field span-full">
-      <label class="field__label" for="tree-template">نقطة البداية للشجرة</label>
-      <select class="select" id="tree-template" formControlName="template">
-        <option value="">شجرة فارغة (المستوى 0 فقط)</option>
-        <optgroup label="استنساخ شجرة مشروع قائم">
-          @for (p of projects.sorted(); track p.id) {
-            <option [value]="'project:' + p.id">{{ p.code }} — {{ p.name }}</option>
-          }
-        </optgroup>
-        @for (p of projects.sorted(); track p.id) {
-          @if (versions.forProject(p.id).length) {
-            <optgroup [label]="'من إصدار محفوظ — ' + p.code">
-              @for (v of versions.forProject(p.id); track v.id) {
-                <option [value]="'version:' + v.id">{{ p.code }} v{{ v.number }} — {{ v.label }}</option>
-              }
-            </optgroup>
-          }
-        }
-      </select>
-      @if (form.controls.template.value) {
-        <span class="check-inline">
-          <input type="checkbox" id="clone-routing" formControlName="includeRouting" />
-          <label for="clone-routing">نسخ مسارات التصنيع أيضاً (تُجدول من اليوم ويُصفّر الإنجاز)</label>
-        </span>
-      }
-    </div>
     <label class="field span-full">
       <span class="field__label">اسم المنتج النهائي *</span>
       <input class="input" formControlName="name" placeholder="مثال: آلة تغليف أفقية" />

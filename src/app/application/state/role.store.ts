@@ -17,6 +17,11 @@ export class RoleStore extends EntityStore<Role> {
     this.modify(id, changes);
   }
 
+  /** Permissions added in later releases are granted to the stored administrator role too. */
+  protected override normalize(role: Role): Role {
+    return role.id === ADMIN_ROLE_ID ? { ...role, permissions: [...ALL_PERMISSIONS] } : role;
+  }
+
   /** The administrator role always keeps the full permission set. */
   setPermissions(id: EntityId, permissions: readonly Permission[]): void {
     if (id === ADMIN_ROLE_ID) return;

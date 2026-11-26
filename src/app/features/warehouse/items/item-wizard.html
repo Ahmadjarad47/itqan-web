@@ -1,0 +1,287 @@
+<app-modal [(open)]="open" title="إنشاء بطاقة منتج" subtitle="اتبع الخطوات بالترتيب — يمنع الدليل تكرار العنصر في أكثر من بطاقة" width="920px">
+  <div class="wizard">
+    <ol class="steps">
+      @for (s of steps; track s.key; let i = $index) {
+        <li [class.done]="i < step()" [class.active]="i === step()">
+          <button type="button" (click)="go(i)">
+            <span class="steps__n">{{ i < step() ? '✓' : i + 1 }}</span>
+            <span class="steps__label">{{ s.label }}</span>
+          </button>
+        </li>
+      }
+    </ol>
+
+    <section class="pane">
+      @switch (current()) {
+        @case ('check') {
+          <div class="hint-box hint-box--warning">
+            <app-icon name="alert" [size]="18" />
+            <div>
+              <strong>قبل إنشاء بطاقة جديدة:</strong> تأكد من عدم وجود عنصر بنفس المواصفات في بطاقة منتج أخرى.
+              ابحث بالاسم، الرمز، أو أهم المواصفات (المقاس، السماكة، المادة...). تكرار العنصر في بطاقتين يُفسد الأرصدة والتكلفة.
+            </div>
+          </div>
+          <label class="field">
+            <span class="field__label">ابحث عن العنصر في البطاقات الحالية</span>
+            <div class="search-box">
+              <app-icon name="search" [size]="16" />
+              <input class="input" placeholder="مثال: صاج 3 مم، قرص قص 115، كابل 2.5" [value]="probe()" (input)="probe.set($any($event.target).value)" />
+            </div>
+          </label>
+          @if (probe().trim().length >= 2) {
+            @if (probeMatches().length) {
+              <div class="matches">
+                <p class="subtle">عناصر مشابهة موجودة — إن كان أحدها هو المطلوب فلا تنشئ بطاقة جديدة:</p>
+                @for (m of probeMatches(); track m.material.id) {
+                  <a class="match" [href]="'/warehouse/items/' + m.material.id" target="_blank">
+                    <span class="code">{{ m.material.code }}</span>
+                    <strong>{{ m.material.name }}</strong>
+                    <span class="subtle">{{ m.material.stock | num }} {{ unitLabels[m.material.unit] }} · {{ options.name(m.material.categoryId) }}</span>
+                    <span class="badge" [class.badge--danger]="m.score >= 0.8" [class.badge--warning]="m.score < 0.8">تشابه {{ m.score * 100 | num: '%' }}</span>
+                  </a>
+                }
+              </div>
+            } @else {
+              <div class="hint-box"><app-icon name="check-circle" [size]="18" /> لا توجد بطاقات مطابقة لعبارة البحث.</div>
+            }
+          }
+          <label class="checkbox confirm">
+            <input type="checkbox" [checked]="checked()" (change)="checked.set($any($event.target).checked)" />
+            بحثت في البطاقات الحالية وتأكدت أن العنصر غير موجود مسبقاً
+          </label>
+        }
+
+        @case ('category') {
+          <h4 class="section-title">1. اختر الفئة الأساسية للعنصر</h4>
+          <div class="option-grid">
+            @for (o of options.categories(); track o.id) {
+              <button type="button" class="option" [class.selected]="categoryId() === o.id" (click)="categoryId.set(o.id)">
+                <strong>{{ o.name }}</strong><span class="code">{{ o.code }}</span>
+              </button>
+            }
+          </div>
+          <div class="add-option">
+            <span class="subtle">القائمة قابلة للتعديل — إضافة فئة:</span>
+            <input class="input input--sm" placeholder="اسم الفئة" [value]="newOptionName()" (input)="newOptionName.set($any($event.target).value)" />
+            <input class="input input--sm ltr short" placeholder="رمز" maxlength="5" [value]="newOptionCode()" (input)="newOptionCode.set($any($event.target).value)" />
+            <button type="button" class="btn btn--sm" [disabled]="!newOptionName().trim()" (click)="addOption('category')"><app-icon name="plus" [size]="14" /> إضافة</button>
+          </div>
+        }
+
+        @case ('nature') {
+          <h4 class="section-title">2. حدد طبيعة المادة</h4>
+          <div class="option-grid">
+            @for (o of options.natures(); track o.id) {
+              <button type="button" class="option" [class.selected]="natureId() === o.id" (click)="natureId.set(o.id)">
+                <strong>{{ o.name }}</strong><span class="code">{{ o.code }}</span>
+              </button>
+            }
+          </div>
+          <div class="add-option">
+            <span class="subtle">إضافة تصنيف:</span>
+            <input class="input input--sm" placeholder="اسم التصنيف" [value]="newOptionName()" (input)="newOptionName.set($any($event.target).value)" />
+            <input class="input input--sm ltr short" placeholder="رمز" maxlength="5" [value]="newOptionCode()" (input)="newOptionCode.set($any($event.target).value)" />
+            <button type="button" class="btn btn--sm" [disabled]="!newOptionName().trim()" (click)="addOption('nature')"><app-icon name="plus" [size]="14" /> إضافة</button>
+          </div>
+        }
+
+        @case ('code') {
+          <h4 class="section-title">3. ترميز العنصر</h4>
+          <div class="segmented">
+            <button type="button" [class.active]="!manualCode()" (click)="setManual(false)"><app-icon name="zap" [size]="14" /> توليد تلقائي</button>
+            <button type="button" [class.active]="manualCode()" (click)="setManual(true)"><app-icon name="edit" [size]="14" /> إدخال يدوي</button>
+          </div>
+          <div class="code-preview">
+            @if (manualCode()) {
+              <input class="input ltr big" [value]="code()" (input)="code.set($any($event.target).value.toUpperCase())" placeholder="ITEM-CODE" />
+            } @else {
+              <span class="code-big">{{ code() }}</span>
+              <span class="subtle">مبني على: {{ category()?.name }} ({{ category()?.code }}) + {{ nature()?.name }} ({{ nature()?.code }}) + تسلسل</span>
+            }
+            @if (codeTaken()) {
+              <span class="error">هذا الرمز مستخدم في بطاقة أخرى</span>
+            }
+          </div>
+        }
+
+        @case ('info') {
+          <h4 class="section-title">4. معلومات العنصر</h4>
+          <div class="form-grid">
+            <label class="field span-full">
+              <span class="field__label">اسم العنصر *</span>
+              <input class="input" [value]="name()" (input)="name.set($any($event.target).value); duplicateAccepted.set(false)" />
+            </label>
+            <label class="field">
+              <span class="field__label">وحدة القياس</span>
+              <select class="select" (change)="unit.set($any($event.target).value)">
+                @for (u of units; track u) {
+                  <option [value]="u" [selected]="u === unit()">{{ unitLabels[u] }}</option>
+                }
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">الاستخدام في الإنتاج</span>
+              <select class="select" (change)="kind.set($any($event.target).value)">
+                @for (k of kinds; track k) {
+                  <option [value]="k" [selected]="k === kind()">{{ kindLabels[k] }}</option>
+                }
+              </select>
+            </label>
+            <label class="field span-full">
+              <span class="field__label">ملاحظات</span>
+              <textarea class="textarea" rows="2" [value]="notes()" (input)="notes.set($any($event.target).value)"></textarea>
+            </label>
+          </div>
+          @if (nameMatches().length) {
+            <div class="hint-box hint-box--danger dup">
+              <app-icon name="alert" [size]="18" />
+              <div>
+                <strong>تحذير: يوجد عناصر بأسماء مشابهة</strong>
+                @for (m of nameMatches(); track m.material.id) {
+                  <div class="row"><span class="code">{{ m.material.code }}</span> {{ m.material.name }} <span class="subtle">({{ m.score * 100 | num: '%' }})</span></div>
+                }
+                <label class="checkbox"><input type="checkbox" [checked]="duplicateAccepted()" (change)="duplicateAccepted.set($any($event.target).checked)" /> راجعتها والعنصر الجديد مختلف عنها</label>
+              </div>
+            </div>
+          }
+          <h4 class="section-title">المواصفات الفنية (ملف)</h4>
+          <app-file-drop kind="document" [compact]="true" label="أرفق ملف المواصفات الفنية" (added)="addFiles($event)" />
+          <app-attachment-list [attachments]="specFiles()" [removable]="true" emptyText="" (removed)="removeFile($event)" />
+        }
+
+        @case ('opening') {
+          <h4 class="section-title">5. هل العنصر موجود مسبقاً في المستودعات؟</h4>
+          <div class="yesno">
+            <button type="button" class="option" [class.selected]="hasStock() === true" (click)="setHasStock(true)">
+              <strong>نعم</strong><span class="subtle">أدخل الكميات الحالية وموقعها الدقيق</span>
+            </button>
+            <button type="button" class="option" [class.selected]="hasStock() === false" (click)="setHasStock(false)">
+              <strong>لا</strong><span class="subtle">تُنشأ البطاقة كرصيد جديد يبدأ من الصفر</span>
+            </button>
+          </div>
+          @if (hasStock()) {
+            <p class="subtle">يمكن توزيع الكمية على أكثر من مستودع، ولكل مستودع كمية مختلفة.</p>
+            <div class="table-wrap">
+              <table class="table lines">
+                <thead><tr><th>المستودع والرف</th><th>الكمية</th><th>سعر الوحدة</th><th>انتهاء الصلاحية</th><th></th></tr></thead>
+                <tbody>
+                  @for (r of opening(); track r.id) {
+                    <tr>
+                      <td style="min-width: 280px">
+                        <app-location-picker [small]="true" [warehouseId]="r.warehouseId" [shelfId]="r.shelfId" (warehouseIdChange)="patchOpening(r.id, { warehouseId: $event })" (shelfIdChange)="patchOpening(r.id, { shelfId: $event })" />
+                      </td>
+                      <td><input class="input input--sm" type="number" min="0" step="any" [value]="r.quantity" (input)="patchOpening(r.id, { quantity: +$any($event.target).value })" /></td>
+                      <td><input class="input input--sm" type="number" min="0" step="any" [value]="r.unitCost" (input)="patchOpening(r.id, { unitCost: +$any($event.target).value })" /></td>
+                      <td><input class="input input--sm" type="date" [value]="r.expiryDate" (change)="patchOpening(r.id, { expiryDate: $any($event.target).value })" /></td>
+                      <td><button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="removeOpening(r.id)"><app-icon name="trash" [size]="14" /></button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="row between">
+              <button type="button" class="btn btn--sm" (click)="addOpening()"><app-icon name="plus" [size]="14" /> موقع آخر</button>
+              <span class="subtle">الإجمالي: <strong class="num">{{ openingTotal() | num }} {{ unitLabels[unit()] }}</strong> · القيمة <strong class="num">{{ openingValue() | money }}</strong></span>
+            </div>
+          }
+        }
+
+        @case ('critical') {
+          <h4 class="section-title">6. تعيين القيم الحرجة (Min / Max)</h4>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">الحد الأدنى ({{ unitLabels[unit()] }})</span>
+              <input class="input" type="number" min="0" step="any" [value]="minStock()" (input)="minStock.set(+$any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span class="field__label">الحد الأقصى ({{ unitLabels[unit()] }})</span>
+              <input class="input" type="number" min="0" step="any" [value]="maxStock()" (input)="maxStock.set(+$any($event.target).value)" />
+            </label>
+          </div>
+          <div class="hint-box"><app-icon name="bell" [size]="18" /> يظهر تنبيه في لوحة المستودعات عند نزول الرصيد عن الحد الأدنى أو تجاوزه الحد الأقصى، ويُقترح الحد الأقصى ككمية توريد.</div>
+        }
+
+        @case ('locations') {
+          <h4 class="section-title">7. مواقع المنتج</h4>
+          <p class="subtle">المواقع التي سيُخزَّن فيها المنتج. المواقع ذات الرصيد الافتتاحي مضافة تلقائياً، ويمكن تخصيص مواقع إضافية بدون كمية.</p>
+          <div class="places">
+            @for (p of allPlaces(); track p.label) {
+              <span class="place"><app-icon name="warehouse" [size]="13" /> {{ p.label }} <strong class="num">{{ p.quantity | num }}</strong></span>
+            }
+          </div>
+          @for (r of storage(); track r.id) {
+            <div class="row storage-row">
+              <app-location-picker [warehouseId]="r.warehouseId" [shelfId]="r.shelfId" (warehouseIdChange)="patchStorage(r.id, { warehouseId: $event })" (shelfIdChange)="patchStorage(r.id, { shelfId: $event })" />
+              <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="removeStorage(r.id)"><app-icon name="trash" [size]="14" /></button>
+            </div>
+          }
+          <button type="button" class="btn btn--sm" (click)="addStorage()"><app-icon name="plus" [size]="14" /> تخصيص موقع تخزين</button>
+        }
+
+        @case ('pricing') {
+          <h4 class="section-title">8. طريقة حساب التكلفة</h4>
+          <div class="yesno">
+            @for (m of methods; track m) {
+              <button type="button" class="option" [class.selected]="costMethod() === m" (click)="costMethod.set(m)">
+                <strong>{{ methodLabels[m] }}</strong>
+                <span class="subtle">
+                  @if (m === 'fifo') {
+                    أول دفعة تدخل المخزن هي أول دفعة تُصرف؛ تُحسب تكلفة الصرف بدءاً من أقدم دفعة شراء.
+                  } @else {
+                    تكلفة وحدة متوسطة = إجمالي تكلفة المخزون ÷ إجمالي الكمية، ويُعاد حسابها بعد كل شراء.
+                  }
+                </span>
+              </button>
+            }
+          </div>
+          <h4 class="section-title">9. هامش الربح لسعر البيع</h4>
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">نوع الهامش</span>
+              <select class="select" (change)="marginType.set($any($event.target).value)">
+                <option value="percent" [selected]="marginType() === 'percent'">نسبة مئوية %</option>
+                <option value="amount" [selected]="marginType() === 'amount'">مبلغ ثابت</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">قيمة الهامش</span>
+              <input class="input" type="number" min="0" step="any" [value]="marginValue()" (input)="marginValue.set(+$any($event.target).value)" />
+            </label>
+          </div>
+          @if (openingTotal()) {
+            <p class="subtle">التكلفة الافتتاحية {{ openingCost() | money }} ← سعر البيع المقترح <strong>{{ sellPreview() | money }}</strong></p>
+          }
+        }
+
+        @case ('review') {
+          <h4 class="section-title">مراجعة البطاقة</h4>
+          <div class="info-grid review">
+            <div><span>الرمز</span><strong class="code">{{ code() }}</strong></div>
+            <div><span>الاسم</span><strong>{{ name() }}</strong></div>
+            <div><span>الفئة</span><strong>{{ category()?.name }}</strong></div>
+            <div><span>التصنيف</span><strong>{{ nature()?.name }}</strong></div>
+            <div><span>الوحدة</span><strong>{{ unitLabels[unit()] }}</strong></div>
+            <div><span>الرصيد الأولي</span><strong class="num">{{ hasStock() ? (openingTotal() | num) : 'صفر (رصيد جديد)' }}</strong></div>
+            <div><span>Min / Max</span><strong class="num">{{ minStock() | num }} / {{ maxStock() | num }}</strong></div>
+            <div><span>طريقة التكلفة</span><strong>{{ methodLabels[costMethod()] }}</strong></div>
+            <div><span>هامش الربح</span><strong class="num">{{ marginValue() }}{{ marginType() === 'percent' ? '%' : ' $' }}</strong></div>
+            <div><span>المواقع</span><strong>{{ allPlaces().length }}</strong></div>
+            <div><span>ملفات المواصفات</span><strong>{{ specFiles().length }}</strong></div>
+          </div>
+        }
+      }
+    </section>
+  </div>
+
+  <ng-container modal-actions>
+    @if (blocker(); as b) {
+      <span class="blocker"><app-icon name="alert" [size]="14" /> {{ b }}</span>
+    }
+    <button type="button" class="btn" [disabled]="step() === 0" (click)="back()"><app-icon name="chevron-right" [size]="15" /> السابق</button>
+    @if (current() === 'review') {
+      <button type="button" class="btn btn--primary" (click)="save()"><app-icon name="check" [size]="16" /> إنشاء البطاقة</button>
+    } @else {
+      <button type="button" class="btn btn--primary" [disabled]="!!blocker()" (click)="next()">التالي <app-icon name="chevron-left" [size]="15" /></button>
+    }
+  </ng-container>
+</app-modal>

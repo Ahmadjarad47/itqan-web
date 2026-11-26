@@ -47,7 +47,7 @@ const DEFAULT_SCORES = [
 function buildRequest(
   id: string,
   number: string,
-  base: Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId' | 'quantity' | 'unit'>,
+  base: Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId' | 'quantity' | 'unit'> & Partial<Pick<PurchaseRequest, 'materialId' | 'warehouseId'>>,
   spec: PurchaseSpec,
   today: IsoDate,
 ): PurchaseRequest {
@@ -90,6 +90,8 @@ function buildRequest(
   return {
     id,
     number,
+    materialId: null,
+    warehouseId: null,
     ...base,
     priority: spec.priority ?? 'normal',
     supplierId: selected?.supplierId ?? null,
@@ -138,5 +140,23 @@ export function seedPurchases(today: IsoDate, nodes: readonly BomNode[], product
     today,
   );
 
-  return [...linked, standalone];
+  // Warehouse supply requests (طلبات توريد للمستودعات) linked to product cards.
+  const supply = [
+    buildRequest(
+      'pr-supply-1',
+      `PR-2026-${String(linked.length + 2).padStart(3, '0')}`,
+      { title: 'ألمنيوم 6061 مسحوب', projectId: null, nodeId: null, quantity: 150, unit: 'kg', materialId: 'm-AL6061', warehouseId: 'wh-metals' },
+      { done: 9, quotes: [['s-1', 5.8, 8], ['s-8', 6.1, 6]], etaOffset: -1, priority: 'high' },
+      today,
+    ),
+    buildRequest(
+      'pr-supply-2',
+      `PR-2026-${String(linked.length + 3).padStart(3, '0')}`,
+      { title: 'قرص رفراف 125 مم', projectId: null, nodeId: null, quantity: 100, unit: 'pcs', materialId: 'm-FLAP-125', warehouseId: 'wh-consumables' },
+      { done: 3, quotes: [['s-6', 2.6, 5]] },
+      today,
+    ),
+  ];
+
+  return [...linked, standalone, ...supply];
 }

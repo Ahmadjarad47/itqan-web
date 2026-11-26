@@ -1,5 +1,6 @@
 import {
   BomNode,
+  CatalogOption,
   CustomFieldDefinition,
   Department,
   Employee,
@@ -9,13 +10,14 @@ import {
   Program,
   Project,
   ProjectModel,
-  ProjectVersion,
   PurchaseRequest,
+  Requisition,
   Role,
   RoutingOperation,
   StockMovement,
   Supplier,
   WorkTask,
+  Warehouse,
   Workstation,
 } from '../models';
 
@@ -45,4 +47,6 @@ export abstract class RoleRepository extends Repository<Role> {}
 export abstract class CustomFieldRepository extends Repository<CustomFieldDefinition> {}
 export abstract class ProgramRepository extends Repository<Program> {}
 export abstract class ProjectModelRepository extends Repository<ProjectModel> {}
-export abstract class ProjectVersionRepository extends Repository<ProjectVersion> {}
+export abstract class WarehouseRepository extends Repository<Warehouse> {}
+export abstract class CatalogOptionRepository extends Repository<CatalogOption> {}
+export abstract class RequisitionRepository extends Repository<Requisition> {}

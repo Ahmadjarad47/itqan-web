@@ -1,0 +1,73 @@
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+}
+
+.info-card {
+  margin-bottom: 20px;
+
+  a {
+    color: var(--primary);
+  }
+}
+
+.tabs {
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.shelves {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.shelf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+
+  &__code {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--primary);
+    direction: ltr;
+    text-align: start;
+  }
+
+  &__name {
+    font-size: 13px;
+  }
+
+  &__actions {
+    position: absolute;
+    inset-inline-end: 6px;
+    top: 6px;
+    display: flex;
+  }
+}
+
+.end {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12px;
+}

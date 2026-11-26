@@ -1,0 +1,255 @@
+.wizard {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 20px;
+  min-height: 420px;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-inline-end: 1px solid var(--border);
+  padding-inline-end: 12px;
+
+  @media (max-width: 760px) {
+    flex-direction: row;
+    overflow-x: auto;
+    border: 0;
+    padding: 0 0 8px;
+
+    .steps__label {
+      display: none;
+    }
+  }
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 13px;
+    text-align: start;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--surface-2);
+    }
+  }
+
+  &__n {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+  }
+
+  .done .steps__n {
+    background: var(--success-soft);
+    color: var(--success);
+    border-color: var(--success);
+  }
+
+  .active button {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  .active .steps__n {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-contrast);
+  }
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.matches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.match {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--primary);
+  }
+
+  .badge {
+    margin-inline-start: auto;
+  }
+}
+
+.confirm {
+  padding: 12px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.yesno {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--primary);
+  }
+
+  &.selected {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    box-shadow: inset 0 0 0 1px var(--primary);
+  }
+}
+
+.add-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+
+  .input {
+    width: 180px;
+  }
+
+  .short {
+    width: 80px;
+  }
+}
+
+.code-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.code-big {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--primary);
+  direction: ltr;
+  text-align: start;
+}
+
+.big {
+  font-size: 18px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.dup .row {
+  margin-top: 4px;
+}
+
+.dup .checkbox {
+  margin-top: 8px;
+}
+
+.between {
+  justify-content: space-between;
+}
+
+.places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.place {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12.5px;
+}
+
+.storage-row app-location-picker {
+  flex: 1;
+}
+
+.review {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.blocker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: auto;
+  color: var(--warning);
+  font-size: 12.5px;
+}

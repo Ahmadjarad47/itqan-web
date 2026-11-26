@@ -14,6 +14,7 @@ export type Permission =
   | 'suppliers.manage'
   | 'inventory.view'
   | 'inventory.manage'
+  | 'warehouses.manage'
   | 'production.view'
   | 'routing.edit'
   | 'tasks.manage'
@@ -68,11 +69,12 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
     ],
   },
   {
-    module: 'المستودع',
+    module: 'إدارة المستودعات',
     icon: 'warehouse',
     permissions: [
-      { key: 'inventory.view', label: 'عرض المخزون', hint: 'الأرصدة وسجل الحركات' },
-      { key: 'inventory.manage', label: 'حركات المخزون', hint: 'إضافة مواد، استلام وصرف' },
+      { key: 'inventory.view', label: 'عرض المستودعات والمخزون', hint: 'لوحة المستودعات، البطاقات، الحركات والتقارير' },
+      { key: 'inventory.manage', label: 'حركات المخزون وبطاقات المنتجات', hint: 'إنشاء البطاقات، الوارد والصادر، المناقلة والإتلاف، طلبات الاحتياج والتوريد' },
+      { key: 'warehouses.manage', label: 'إدارة المستودعات', hint: 'إنشاء المستودعات والرفوف وترميزها والقوائم المنسدلة' },
     ],
   },
   {

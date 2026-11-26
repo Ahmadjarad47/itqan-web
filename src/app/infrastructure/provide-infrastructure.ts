@@ -2,6 +2,7 @@ import { EnvironmentProviders, makeEnvironmentProviders, Provider } from '@angul
 import { Entity } from '@domain/models';
 import {
   BomNodeRepository,
+  CatalogOptionRepository,
   CustomFieldRepository,
   DepartmentRepository,
   EmployeeRepository,
@@ -10,13 +11,14 @@ import {
   ProgramRepository,
   ProjectModelRepository,
   ProjectRepository,
-  ProjectVersionRepository,
   PurchaseRepository,
   Repository,
+  RequisitionRepository,
   RoleRepository,
   StockMovementRepository,
   SupplierRepository,
   TaskRepository,
+  WarehouseRepository,
   WorkstationRepository,
 } from '@domain/ports/repositories';
 import { LocalStorageRepository } from './persistence/local-storage.repository';
@@ -56,6 +58,8 @@ export function provideInfrastructure(): EnvironmentProviders {
     localRepository(CustomFieldRepository, 'customFields'),
     localRepository(ProgramRepository, 'programs'),
     localRepository(ProjectModelRepository, 'models'),
-    localRepository(ProjectVersionRepository, 'versions'),
+    localRepository(WarehouseRepository, 'warehouses'),
+    localRepository(CatalogOptionRepository, 'catalogOptions'),
+    localRepository(RequisitionRepository, 'requisitions'),
   ]);
 }

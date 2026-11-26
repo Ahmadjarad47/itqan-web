@@ -1,0 +1,382 @@
+@if (material(); as m) {
+  <nav class="crumbs no-print">
+    <a routerLink="/warehouse/items">بطاقات المنتجات</a>
+    <app-icon name="chevron-left" [size]="14" />
+    <span>{{ m.code }}</span>
+  </nav>
+
+  <app-page-header [title]="m.name" [subtitle]="options.name(m.categoryId) + ' · ' + options.name(m.natureId) + ' · ' + unitLabels[m.unit]" [eyebrow]="m.code" icon="package">
+    <ng-container *appCan="'inventory.manage'">
+      <a class="btn" routerLink="/warehouse/movements" [queryParams]="{ tab: 'in', item: m.id }"><app-icon name="download" [size]="16" /> تسجيل وارد</a>
+      <a class="btn" routerLink="/warehouse/movements" [queryParams]="{ tab: 'out', item: m.id }"><app-icon name="upload" [size]="16" /> تسجيل صادر</a>
+      <a class="btn" routerLink="/warehouse/supply" [queryParams]="{ item: m.id }"><app-icon name="cart" [size]="16" /> طلب توريد</a>
+      <button type="button" class="btn btn--primary" (click)="openEdit()"><app-icon name="edit" [size]="16" /> تعديل</button>
+    </ng-container>
+  </app-page-header>
+
+  <section class="kpis">
+    <app-stat-card label="الرصيد الحالي" [value]="(m.stock | num) + ' ' + unitLabels[m.unit]" icon="package" [tone]="level() === 'low' || level() === 'empty' ? 'danger' : level() === 'over' ? 'info' : 'success'" [hint]="'Min ' + m.minStock + ' / Max ' + (m.maxStock || '—')" />
+    <button type="button" class="kpi-button" (click)="tab.set('pricing'); pricingOpen.set(true)" title="عرض تفاصيل آلية التسعير">
+      <app-stat-card label="تكلفة الوحدة الحالية" [value]="(m.unitCost | money)" icon="coins" tone="accent" [hint]="(m.costMethod === 'fifo' ? 'FIFO' : 'متوسط مرجح') + ' — اضغط للتفاصيل'" />
+    </button>
+    <app-stat-card label="سعر البيع" [value]="(sellPrice() | money)" icon="trending" tone="info" [hint]="'هامش ' + m.margin.value + (m.margin.type === 'percent' ? '%' : ' $')" />
+    <app-stat-card label="قيمة المخزون" [value]="((ledger()?.value ?? m.stock * m.unitCost) | money)" icon="layers" />
+  </section>
+
+  @if (level() === 'low' || level() === 'empty') {
+    <div class="hint-box hint-box--danger banner">
+      <app-icon name="alert" [size]="18" />
+      <div>الرصيد تحت الحد الأدنى ({{ m.minStock | num }}). الكمية المقترحة للتوريد حتى الحد الأقصى: <strong class="num">{{ supply() | num }} {{ unitLabels[m.unit] }}</strong>.
+        <a *appCan="'inventory.manage'" routerLink="/warehouse/supply" [queryParams]="{ item: m.id }">إنشاء طلب توريد</a></div>
+    </div>
+  }
+
+  <div class="segmented tabs no-print">
+    <button type="button" [class.active]="tab() === 'info'" (click)="tab.set('info')"><app-icon name="file" [size]="15" /> البيانات والمواصفات</button>
+    <button type="button" [class.active]="tab() === 'locations'" (click)="tab.set('locations')"><app-icon name="warehouse" [size]="15" /> المواقع ({{ m.locations.length }})</button>
+    <button type="button" [class.active]="tab() === 'history'" (click)="tab.set('history')"><app-icon name="clock" [size]="15" /> سجل العنصر (History)</button>
+    <button type="button" [class.active]="tab() === 'pricing'" (click)="tab.set('pricing')"><app-icon name="coins" [size]="15" /> السعر والتكلفة</button>
+  </div>
+
+  @switch (tab()) {
+    @case ('info') {
+      <div class="grid two">
+        <section class="card">
+          <div class="card__header"><h3 class="card__title">بيانات البطاقة</h3></div>
+          <div class="card__body info-grid">
+            <div><span>رمز العنصر</span><strong class="code">{{ m.code }}</strong></div>
+            <div><span>الفئة الأساسية</span><strong>{{ options.name(m.categoryId) }}</strong></div>
+            <div><span>التصنيف التفصيلي</span><strong>{{ options.name(m.natureId) }}</strong></div>
+            <div><span>وحدة القياس</span><strong>{{ unitLabels[m.unit] }}</strong></div>
+            <div><span>الاستخدام في الإنتاج</span><strong>{{ kindLabels[m.kind] }}</strong></div>
+            <div><span>الحد الأدنى / الأقصى</span><strong class="num">{{ m.minStock | num }} / {{ m.maxStock ? (m.maxStock | num) : '—' }}</strong></div>
+            <div><span>طريقة التكلفة</span><strong>{{ methodLabels[m.costMethod] }}</strong></div>
+            <div><span>تاريخ الإنشاء</span><strong class="num">{{ m.createdAt | arDate }}</strong></div>
+            <div class="span-all"><span>ملاحظات</span><strong class="notes">{{ m.notes || '—' }}</strong></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card__header"><h3 class="card__title"><app-icon name="file" [size]="16" /> المواصفات الفنية</h3></div>
+          <div class="card__body stack-sm">
+            <app-file-drop *appCan="'inventory.manage'" kind="document" [compact]="true" label="أرفق ملف مواصفات" (added)="addFiles($event)" />
+            <app-attachment-list [attachments]="m.specFiles" (removed)="removeFile($event)" />
+          </div>
+        </section>
+      </div>
+    }
+
+    @case ('locations') {
+      <section class="card">
+        <div class="card__header">
+          <div>
+            <h3 class="card__title"><app-icon name="warehouse" [size]="16" /> مواقع المنتج</h3>
+            <p class="card__subtitle">يمكن أن يكون المنتج في أكثر من مستودع وبكميات مختلفة</p>
+          </div>
+          <button *appCan="'inventory.manage'" type="button" class="btn btn--sm" (click)="openPlace()"><app-icon name="plus" [size]="14" /> تخصيص موقع</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>المستودع</th><th>الرف</th><th>الكمية</th><th>النسبة</th><th></th></tr></thead>
+            <tbody>
+              @for (r of locations(); track r.location.warehouseId + r.location.shelfId) {
+                <tr>
+                  <td><a [routerLink]="['/warehouse/sites', r.location.warehouseId]">{{ r.path || '—' }}</a></td>
+                  <td><span class="code">{{ r.label.split(' · ')[1] ?? 'بدون رف' }}</span></td>
+                  <td class="num"><strong>{{ r.location.quantity | num }}</strong> {{ unitLabels[m.unit] }}</td>
+                  <td class="num muted">{{ m.stock ? ((r.location.quantity / m.stock) * 100 | num: '%') : '—' }}</td>
+                  <td>
+                    <div class="row" *appCan="'inventory.manage'">
+                      @if (r.location.quantity > 0) {
+                        <button type="button" class="btn btn--sm" (click)="openTransfer(r.location)"><app-icon name="route" [size]="14" /> مناقلة</button>
+                      } @else {
+                        <button type="button" class="btn btn--ghost btn--sm" (click)="removePlace(r.location)"><app-icon name="trash" [size]="14" /> إزالة</button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5"><app-empty-state icon="warehouse" title="لا توجد مواقع محددة" /></td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    @case ('history') {
+      <section class="card">
+        <div class="card__header">
+          <div>
+            <h3 class="card__title"><app-icon name="clock" [size]="16" /> سجل العنصر</h3>
+            <p class="card__subtitle">الدخول والخروج والمناقلة والإتلاف مع رقم المرجع وسعر الوحدة عند كل عملية — مسحوب من شاشة حركة المستودع</p>
+          </div>
+          <div class="row no-print">
+            <select class="select input--sm" (change)="historyType.set($any($event.target).value)">
+              <option value="">كل العمليات</option>
+              @for (t of historyTypes; track t) {
+                <option [value]="t">{{ movementLabels[t] }}</option>
+              }
+            </select>
+            <button type="button" class="btn btn--sm btn--ghost" (click)="exportHistory()"><app-icon name="download" [size]="14" /> CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table ledger">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>العملية</th>
+                <th>المرجع</th>
+                <th>الكمية ({{ unitLabels[m.unit] }})</th>
+                <th>سعر الوحدة</th>
+                <th>المبلغ الإجمالي</th>
+                <th>الكمية المتبقية</th>
+                <th>متوسط تكلفة الوحدة</th>
+                <th>تكلفة المخزون المتبقي</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of history(); track r.movement.id) {
+                <tr>
+                  <td class="num nowrap">{{ r.date | arDate }}</td>
+                  <td>
+                    <span class="badge" [class.badge--success]="r.quantity > 0 && r.movement.type !== 'transfer'" [class.badge--warning]="r.quantity < 0 && r.movement.type !== 'transfer'" [class.badge--info]="r.movement.type === 'transfer'">
+                      {{ r.movement.type === 'receipt' && r.movement.source ? sourceLabels[r.movement.source] : movementLabels[r.movement.type] }}
+                    </span>
+                    <div class="subtle">{{ r.place }}</div>
+                  </td>
+                  <td class="muted"><span class="ltr">{{ r.movement.documentNo || '—' }}</span></td>
+                  <td class="num" [class.pos]="r.quantity > 0" [class.neg]="r.quantity < 0">{{ r.quantity > 0 ? '+' : '' }}{{ r.quantity | num }}</td>
+                  <td class="num">
+                    @if (r.unitPrice !== null) {
+                      {{ r.unitPrice | money }}
+                      @if (r.movement.sellPrice !== null && r.issuedCost !== null) {
+                        <div class="subtle">تكلفة {{ r.issuedCost / -r.quantity | money }}</div>
+                      }
+                    } @else {
+                      —
+                    }
+                  </td>
+                  <td class="num">{{ r.amount !== null ? (r.amount | money) : '—' }}</td>
+                  <td class="num"><strong>{{ r.balanceQty | num }}</strong></td>
+                  <td class="num">{{ r.averageCost | money }}</td>
+                  <td class="num">{{ r.balanceValue | money }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="9"><app-empty-state icon="clock" title="لا توجد حركات بعد" /></td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    @case ('pricing') {
+      @let l = ledger();
+      <div class="grid two">
+        <section class="card">
+          <div class="card__header"><h3 class="card__title"><app-icon name="scale" [size]="16" /> طريقة حساب التكلفة</h3></div>
+          <div class="card__body stack-sm">
+            <div class="methods">
+              @for (method of methods; track method) {
+                <button type="button" class="method" [class.selected]="m.costMethod === method" [disabled]="!canManage" (click)="setMethod(method)">
+                  <strong>{{ methodLabels[method] }}</strong>
+                </button>
+              }
+            </div>
+            @if (m.costMethod === 'fifo') {
+              <p class="explain">أول منتج يدخل المخزن هو أول منتج يُصرف. عند الصرف تُحسب التكلفة بدءاً من أقدم دفعة شراء، وعندما تنتهي الدفعة القديمة يُستخدم سعر الدفعة التالية. تكلفة الوحدة الحالية = سعر أقدم دفعة متبقية.</p>
+            } @else {
+              <p class="explain">تكلفة وحدة متوسطة = إجمالي تكلفة المخزون ÷ إجمالي الكمية، وتُستخدم في كل عملية صرف، ويُعاد حساب المتوسط بعد كل عملية شراء جديدة.</p>
+            }
+            @if (l) {
+              <div class="formula">
+                @if (m.costMethod === 'average') {
+                  <span class="num">{{ l.value | money }}</span> ÷ <span class="num">{{ l.quantity | num }}</span> = <strong class="num">{{ l.averageCost | money }}</strong> / {{ unitLabels[m.unit] }}
+                } @else {
+                  أقدم دفعة متبقية: <strong class="num">{{ (l.lots[0]?.unitCost ?? m.unitCost) | money }}</strong> — متوسط المخزون {{ l.averageCost | money }}
+                }
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card__header"><h3 class="card__title"><app-icon name="trending" [size]="16" /> سعر البيع</h3></div>
+          <div class="card__body stack-sm">
+            <p class="explain">سعر البيع = تكلفة الوحدة + هامش الربح (رقم أو نسبة مئوية).</p>
+            <div class="row" *appCan="'inventory.manage'">
+              <select class="select input--sm" (change)="setMargin($any($event.target).value, m.margin.value)">
+                <option value="percent" [selected]="m.margin.type === 'percent'">نسبة %</option>
+                <option value="amount" [selected]="m.margin.type === 'amount'">مبلغ ثابت</option>
+              </select>
+              <input class="input input--sm margin" type="number" min="0" step="any" [value]="m.margin.value" (change)="setMargin(m.margin.type, +$any($event.target).value)" />
+            </div>
+            <div class="formula">
+              <span class="num">{{ m.unitCost | money }}</span> + {{ m.margin.type === 'percent' ? m.margin.value + '%' : (m.margin.value | money) }} = <strong class="num">{{ sellPrice() | money }}</strong>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card spaced">
+        <div class="card__header">
+          <div>
+            <h3 class="card__title"><app-icon name="layers" [size]="16" /> تفاصيل آلية التسعير</h3>
+            <p class="card__subtitle">مسحوبة من سجل العنصر: أسعار الشراء المختلفة والدفعات المتبقية</p>
+          </div>
+          <button type="button" class="btn btn--sm btn--ghost" (click)="pricingOpen.set(!pricingOpen())">{{ pricingOpen() ? 'إخفاء' : 'عرض' }}</button>
+        </div>
+        @if (pricingOpen() && l) {
+          <div class="card__body pricing-detail">
+            <h4 class="section-title">أسعار الشراء المسجلة</h4>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>التاريخ</th><th>المرجع</th><th>الكمية</th><th>سعر الوحدة</th><th>المبلغ</th></tr></thead>
+                <tbody>
+                  @for (p of purchases(); track p.movement.id) {
+                    <tr>
+                      <td class="num">{{ p.movement.date | arDate }}</td>
+                      <td class="ltr muted">{{ p.movement.documentNo || p.movement.reference }}</td>
+                      <td class="num">{{ p.quantity | num }}</td>
+                      <td class="num">{{ p.unitPrice | money }}</td>
+                      <td class="num">{{ p.amount | money }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <h4 class="section-title">الدفعات المتبقية في المخزون {{ m.costMethod === 'average' ? '(مقيّمة بالمتوسط)' : '(ترتيب الصرف FIFO)' }}</h4>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>#</th><th>تاريخ الدخول</th><th>الدفعة</th><th>الكمية المتبقية</th><th>تكلفة الوحدة</th><th>القيمة</th><th>انتهاء الصلاحية</th></tr></thead>
+                <tbody>
+                  @for (lot of l.lots; track $index) {
+                    <tr>
+                      <td class="num muted">{{ $index + 1 }}</td>
+                      <td class="num">{{ lot.date | arDate }}</td>
+                      <td class="ltr muted">{{ lot.reference }}</td>
+                      <td class="num">{{ lot.quantity | num }}</td>
+                      <td class="num">{{ lot.unitCost | money }}</td>
+                      <td class="num">{{ lot.quantity * lot.unitCost | money }}</td>
+                      <td class="num">{{ lot.expiryDate ? (lot.expiryDate | arDate) : '—' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="7"><app-empty-state icon="inbox" title="لا يوجد رصيد" /></td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <h4 class="section-title">محاكاة تكلفة صرف كمية</h4>
+            <div class="row">
+              <input class="input input--sm margin" type="number" min="0" step="any" placeholder="الكمية" [value]="previewQty() || ''" (input)="previewQty.set(+$any($event.target).value)" />
+              <span class="subtle">{{ unitLabels[m.unit] }}</span>
+              @if (issuePreview(); as p) {
+                <span class="formula inline">
+                  تكلفة البضاعة المصروفة = <strong class="num">{{ p.cost | money }}</strong> ({{ p.unit | money }} / وحدة) — المتبقي {{ p.remaining | num }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </section>
+    }
+  }
+
+  <app-modal [(open)]="editOpen" title="تعديل بطاقة المنتج" width="620px">
+    @if (draft(); as d) {
+      <div class="form-grid">
+        <label class="field span-full">
+          <span class="field__label">الاسم *</span>
+          <input class="input" [value]="d.name" (input)="patchDraft({ name: $any($event.target).value })" />
+        </label>
+        <label class="field">
+          <span class="field__label">الفئة الأساسية</span>
+          <select class="select" (change)="patchDraft({ categoryId: $any($event.target).value })">
+            <option value="">—</option>
+            @for (o of options.categories(); track o.id) {
+              <option [value]="o.id" [selected]="o.id === d.categoryId">{{ o.name }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">التصنيف التفصيلي</span>
+          <select class="select" (change)="patchDraft({ natureId: $any($event.target).value })">
+            <option value="">—</option>
+            @for (o of options.natures(); track o.id) {
+              <option [value]="o.id" [selected]="o.id === d.natureId">{{ o.name }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">الوحدة</span>
+          <select class="select" (change)="patchDraft({ unit: $any($event.target).value })">
+            @for (u of units; track u) {
+              <option [value]="u" [selected]="u === d.unit">{{ unitLabels[u] }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">الاستخدام في الإنتاج</span>
+          <select class="select" (change)="patchDraft({ kind: $any($event.target).value })">
+            @for (k of kinds; track k) {
+              <option [value]="k" [selected]="k === d.kind">{{ kindLabels[k] }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">الحد الأدنى</span>
+          <input class="input" type="number" min="0" step="any" [value]="d.minStock" (input)="patchDraft({ minStock: +$any($event.target).value })" />
+        </label>
+        <label class="field">
+          <span class="field__label">الحد الأقصى</span>
+          <input class="input" type="number" min="0" step="any" [value]="d.maxStock" (input)="patchDraft({ maxStock: +$any($event.target).value })" />
+        </label>
+        <label class="field span-full">
+          <span class="field__label">ملاحظات</span>
+          <textarea class="textarea" rows="3" [value]="d.notes" (input)="patchDraft({ notes: $any($event.target).value })"></textarea>
+        </label>
+      </div>
+    }
+    <ng-container modal-actions>
+      <button type="button" class="btn" (click)="editOpen.set(false)">إلغاء</button>
+      <button type="button" class="btn btn--primary" (click)="saveEdit()"><app-icon name="check" [size]="16" /> حفظ</button>
+    </ng-container>
+  </app-modal>
+
+  <app-modal [(open)]="transferOpen" title="مناقلة بين المستودعات" [subtitle]="'من: ' + warehouses.locationLabel(transferFrom()?.warehouseId, transferFrom()?.shelfId)" width="520px">
+    <div class="form-grid">
+      <label class="field span-full">
+        <span class="field__label">إلى (المستودع والرف) *</span>
+        <app-location-picker [(warehouseId)]="toWarehouse" [(shelfId)]="toShelf" />
+      </label>
+      <label class="field">
+        <span class="field__label">الكمية (المتوفر {{ transferFrom()?.quantity | num }})</span>
+        <input class="input" type="number" min="0" step="any" [value]="transferQty()" (input)="transferQty.set(+$any($event.target).value)" />
+      </label>
+      <label class="field">
+        <span class="field__label">المرجع</span>
+        <input class="input" [value]="transferRef()" (input)="transferRef.set($any($event.target).value)" placeholder="رقم إذن المناقلة" />
+      </label>
+    </div>
+    <ng-container modal-actions>
+      @if (transferError(); as e) {
+        <span class="blocker">{{ e }}</span>
+      }
+      <button type="button" class="btn" (click)="transferOpen.set(false)">إلغاء</button>
+      <button type="button" class="btn btn--primary" [disabled]="!!transferError()" (click)="confirmTransfer()"><app-icon name="route" [size]="16" /> تنفيذ المناقلة</button>
+    </ng-container>
+  </app-modal>
+
+  <app-modal [(open)]="placeOpen" title="تخصيص موقع تخزين" width="480px">
+    <app-location-picker [(warehouseId)]="placeWarehouse" [(shelfId)]="placeShelf" />
+    <ng-container modal-actions>
+      <button type="button" class="btn" (click)="placeOpen.set(false)">إلغاء</button>
+      <button type="button" class="btn btn--primary" [disabled]="!placeWarehouse()" (click)="savePlace()"><app-icon name="check" [size]="16" /> إضافة</button>
+    </ng-container>
+  </app-modal>
+} @else {
+  <app-empty-state icon="package" title="البطاقة غير موجودة" />
+}

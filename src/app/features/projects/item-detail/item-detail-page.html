@@ -180,7 +180,7 @@
                       <strong>{{ row.material?.name ?? 'مادة محذوفة' }}</strong>
                     </div>
                   </td>
-                  <td class="muted">{{ row.material?.warehouse }}</td>
+                  <td class="muted">{{ row.material ? warehouseOf(row.material) : '—' }}</td>
                   <td>
                     <div class="row">
                       <input

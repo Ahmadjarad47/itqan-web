@@ -5,4 +5,4 @@ export * from './progress';
 export * from './purchase-flow';
 export * from './mcdm';
 export * from './task-flow';
-export * from './bom-clone';
+export * from './stock-costing';

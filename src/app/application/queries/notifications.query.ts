@@ -128,7 +128,7 @@ export class NotificationsQuery {
       tone: 'warning',
       title: 'مخزون تحت الحد الأدنى',
       text: material.name,
-      link: '/inventory',
+      link: `/warehouse/items/${material.id}`,
     }));
 
     return [...own, ...chats, ...rejected, ...qcFailed, ...delayedPurchases, ...lateOps, ...lowStock];

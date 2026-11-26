@@ -1,0 +1,42 @@
+.card__header {
+  flex-wrap: wrap;
+}
+
+.filters {
+  margin-top: 14px;
+}
+
+.segmented--sm button {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+
+  .input {
+    width: 150px;
+  }
+}
+
+.link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover strong {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}

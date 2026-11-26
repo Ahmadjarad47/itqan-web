@@ -30,11 +30,11 @@ export const routes: Routes = [
         canActivate: [requirePermission('procurement.view')],
         loadChildren: () => import('@features/procurement/procurement.routes'),
       },
+      { path: 'inventory', redirectTo: 'warehouse' },
       {
-        path: 'inventory',
-        title: 'المستودع',
+        path: 'warehouse',
         canActivate: [requirePermission('inventory.view')],
-        loadComponent: () => import('@features/inventory/inventory-page').then((m) => m.InventoryPage),
+        loadChildren: () => import('@features/warehouse/warehouse.routes'),
       },
       {
         path: 'production',

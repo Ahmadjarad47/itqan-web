@@ -101,6 +101,10 @@ export interface PurchaseRequest extends Entity, HasCustomFields {
   /** Null for standalone purchases that are not linked to any project. */
   readonly projectId: EntityId | null;
   readonly nodeId: EntityId | null;
+  /** Product card for warehouse supply requests (طلب توريد للمستودعات). */
+  readonly materialId: EntityId | null;
+  /** Destination warehouse of a supply request. */
+  readonly warehouseId: EntityId | null;
   readonly quantity: number;
   readonly unit: Unit;
   readonly priority: PurchasePriority;

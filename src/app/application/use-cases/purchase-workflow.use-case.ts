@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { EntityId, PurchaseStageKey, QualityResult } from '@domain/models';
 import { canToggleStage, findStage, Guard, todayIso } from '@domain/rules';
 import { BomStore } from '../state/bom.store';
-import { InventoryStore } from '../state/inventory.store';
+import { DEFAULT_PURCHASED_WAREHOUSE, InventoryStore } from '../state/inventory.store';
 import { PurchaseStore } from '../state/purchase.store';
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +45,26 @@ export class PurchaseWorkflowUseCase {
   /** Receiving a quality-approved part opens (or increases) its inventory record. */
   private receiveIntoWarehouse(requestId: EntityId): void {
     const request = this.purchases.find(requestId)!;
+    // Supply requests of a product card are received into that card and its destination warehouse.
+    const linked = this.inventory.find(request.materialId);
+    if (linked) {
+      const location = request.warehouseId
+        ? { warehouseId: request.warehouseId, shelfId: linked.locations.find((l) => l.warehouseId === request.warehouseId)?.shelfId ?? null }
+        : (linked.locations[0] ?? { warehouseId: DEFAULT_PURCHASED_WAREHOUSE, shelfId: null });
+      this.inventory.receive({
+        materialId: linked.id,
+        ...location,
+        quantity: request.quantity,
+        unitCost: request.unitPrice ?? linked.unitCost,
+        date: todayIso(),
+        source: 'supply',
+        documentNo: request.number,
+        supplierId: request.supplierId,
+        purchaseId: request.id,
+      });
+      return;
+    }
+
     const node = this.bom.find(request.nodeId);
     const code = node?.code ?? request.number;
     const material =
@@ -55,11 +75,29 @@ export class PurchaseWorkflowUseCase {
         kind: 'purchased',
         unit: request.unit,
         unitCost: request.unitPrice ?? 0,
-        stock: 0,
         minStock: 0,
-        warehouse: 'مستودع الأجزاء المشتراة',
+        maxStock: 0,
+        categoryId: 'opt-cat-purchased',
+        natureId: null,
+        costMethod: 'average',
+        margin: { type: 'percent', value: 0 },
+        specFiles: [],
+        notes: '',
+        storage: [{ warehouseId: DEFAULT_PURCHASED_WAREHOUSE, shelfId: null }],
       });
-    this.inventory.move(material.id, 'receipt', request.quantity, request.number);
+    const location = material.locations[0] ?? { warehouseId: DEFAULT_PURCHASED_WAREHOUSE, shelfId: null };
+    this.inventory.receive({
+      materialId: material.id,
+      warehouseId: location.warehouseId,
+      shelfId: location.shelfId,
+      quantity: request.quantity,
+      unitCost: request.unitPrice ?? material.unitCost,
+      date: todayIso(),
+      source: 'supply',
+      documentNo: request.number,
+      supplierId: request.supplierId,
+      purchaseId: request.id,
+    });
 
     if (node && request.unitPrice !== null) {
       this.bom.update(node.id, { purchaseUnitPrice: request.unitPrice });

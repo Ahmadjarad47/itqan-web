@@ -1,0 +1,191 @@
+<app-page-header
+  title="طلبات التوريد للمستودعات"
+  subtitle="إنشاء طلبات التوريد وتتبع المرحلة التي وصل إليها كل طلب حتى فحص الجودة، ثم الاستلام في حركة المستودع"
+  eyebrow="إدارة المستودعات"
+  icon="truck"
+>
+  <button *appCan="'inventory.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> طلب توريد جديد</button>
+</app-page-header>
+
+@let t = totals();
+<section class="kpis">
+  <app-stat-card label="طلبات مفتوحة" [value]="t.open" icon="inbox" />
+  <app-stat-card label="بانتظار الاستلام" [value]="t.awaiting" icon="check-circle" tone="success" hint="اجتازت فحص الجودة" />
+  <app-stat-card label="متأخرة عن ETA" [value]="t.late" icon="clock" [tone]="t.late ? 'danger' : 'success'" />
+  <app-stat-card label="قيمة الالتزامات" [value]="(t.committed | money: true)" icon="coins" tone="accent" />
+</section>
+
+@if (suggestions().length) {
+  <section class="card suggest" *appCan="'inventory.manage'">
+    <div class="card__header">
+      <h3 class="card__title"><app-icon name="alert" [size]="16" /> عناصر تحت الحد الأدنى بدون طلب توريد</h3>
+    </div>
+    <div class="card__body chips">
+      @for (s of suggestions(); track s.material.id) {
+        <button type="button" class="chip" (click)="openCreate(s.material.id, s.quantity)">
+          <span class="code">{{ s.material.code }}</span> {{ s.material.name }} — اقتراح {{ s.quantity | num }} {{ unitLabels[s.material.unit] }}
+        </button>
+      }
+    </div>
+  </section>
+}
+
+<section class="card">
+  <div class="filters">
+    <div class="chips">
+      @for (s of segments; track s.key) {
+        <button type="button" class="chip" [class.active]="segment() === s.key" (click)="segment.set(s.key)">{{ s.label }} <span class="count num">{{ counts()[s.key] }}</span></button>
+      }
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <app-icon name="search" [size]="16" />
+        <input class="input input--sm" placeholder="رقم الطلب أو رمز العنصر" [value]="search()" (input)="search.set($any($event.target).value)" />
+      </div>
+      <select class="select input--sm" (change)="warehouseFilter.set($any($event.target).value)">
+        <option value="">كل المستودعات</option>
+        @for (row of warehouses.tree(); track row.warehouse.id) {
+          <option [value]="row.warehouse.id">{{ row.depth ? '  ↳ ' : '' }}{{ row.warehouse.name }}</option>
+        }
+      </select>
+      <select class="select input--sm" (change)="sort.set($any($event.target).value)">
+        <option value="number">الأحدث</option>
+        <option value="eta">موعد التسليم</option>
+        <option value="priority">الأولوية</option>
+        <option value="stage">المرحلة الأبعد</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>الطلب</th>
+          <th>بطاقة العنصر</th>
+          <th>المستودع</th>
+          <th>الكمية</th>
+          <th>الأولوية</th>
+          <th>المورد / السعر</th>
+          <th>المرحلة الحالية</th>
+          <th>التسليم المقدر</th>
+          <th>الإنجاز</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.request.id) {
+          <tr class="clickable" (click)="open(r.request)">
+            <td><span class="ltr"><strong>{{ r.request.number }}</strong></span><div class="subtle num">{{ r.request.createdAt | arDate }}</div></td>
+            <td>
+              <div class="title">
+                <strong>{{ r.material?.name ?? r.request.title }}</strong>
+                <span class="code">{{ r.material?.code }}</span>
+              </div>
+            </td>
+            <td class="muted">{{ warehouses.find(r.request.warehouseId)?.name ?? '—' }}</td>
+            <td class="num nowrap">{{ r.request.quantity | num }} {{ unitLabels[r.request.unit] }}</td>
+            <td><span class="badge" [class.badge--danger]="r.request.priority === 'urgent'" [class.badge--warning]="r.request.priority === 'high'">{{ priorityLabels[r.request.priority] }}</span></td>
+            <td>
+              {{ r.supplier?.name ?? '—' }}
+              @if (r.request.unitPrice !== null) {
+                <div class="subtle num">{{ r.request.unitPrice | money }}</div>
+              }
+            </td>
+            <td>
+              <div class="status">
+                <app-stage-dots [request]="r.request" />
+                <span [class.done]="r.received" [class.ready]="r.awaiting" [class.failed]="r.request.qualityResult === 'failed' && !r.received">{{ r.awaiting ? 'بانتظار الاستلام في المستودع' : r.status }}</span>
+              </div>
+            </td>
+            <td>
+              @if (r.request.eta) {
+                <span class="num">{{ r.request.eta | arDate: 'short' }}</span>
+                @if (r.delay > 0 && !r.received) {
+                  <span class="badge badge--danger num">+{{ r.delay }} يوم</span>
+                }
+              } @else {
+                <span class="subtle">—</span>
+              }
+            </td>
+            <td style="width: 120px"><app-progress-bar [value]="r.progress" /></td>
+            <td>
+              @if (r.awaiting) {
+                <button *appCan="'inventory.manage'" type="button" class="btn btn--sm btn--primary" (click)="receive(r.request, $event)"><app-icon name="download" [size]="14" /> استلام</button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="10"><app-empty-state icon="truck" title="لا توجد طلبات توريد مطابقة" /></td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<app-modal [(open)]="creating" title="طلب توريد للمستودعات" subtitle="اختر رمز بطاقة العنصر فتظهر معلوماته تلقائياً، ثم أدخل الكمية المطلوب شراؤها" width="620px">
+  <div class="form-grid">
+    <label class="field span-full">
+      <span class="field__label">رمز بطاقة العنصر *</span>
+      <app-item-picker [value]="itemId()" (valueChange)="selectItem($event)" />
+    </label>
+  </div>
+
+  @if (selectedInfo(); as info) {
+    <div class="item-info">
+      <div class="info-grid">
+        <div><span>العنصر</span><strong>{{ info.material.name }}</strong></div>
+        <div><span>الرصيد الحالي</span><strong class="num" [class]="'num level--' + info.level">{{ info.material.stock | num }} {{ unitLabels[info.material.unit] }}</strong></div>
+        <div><span>Min / Max</span><strong class="num">{{ info.material.minStock | num }} / {{ info.material.maxStock || '—' }}</strong></div>
+        <div><span>تكلفة الوحدة</span><strong class="num">{{ info.material.unitCost | money }}</strong></div>
+        <div><span>آخر سعر شراء</span><strong class="num">{{ info.lastPrice !== null ? (info.lastPrice | money) : '—' }}</strong></div>
+        <div><span>الكمية المقترحة</span><strong class="num">{{ info.suggested | num }}</strong></div>
+      </div>
+      @if (info.places.length) {
+        <p class="subtle">المواقع: {{ info.places.join(' · ') }}</p>
+      }
+      @if (info.open.length) {
+        <div class="hint-box hint-box--warning">
+          <app-icon name="alert" [size]="16" />
+          <div>يوجد طلب توريد مفتوح لنفس العنصر:
+            @for (o of info.open; track o.id) {
+              <a [routerLink]="['/procurement/requests', o.id]" class="ltr">{{ o.number }}</a> ({{ o.quantity | num }})
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <div class="form-grid">
+      <label class="field">
+        <span class="field__label">الكمية المطلوب شراؤها ({{ unitLabels[info.material.unit] }}) *</span>
+        <input class="input" type="number" min="0" step="any" [value]="quantity()" (input)="quantity.set(+$any($event.target).value)" />
+      </label>
+      <label class="field">
+        <span class="field__label">الأولوية</span>
+        <select class="select" (change)="priority.set($any($event.target).value)">
+          @for (p of priorities; track p) {
+            <option [value]="p" [selected]="p === priority()">{{ priorityLabels[p] }}</option>
+          }
+        </select>
+      </label>
+      <label class="field span-full">
+        <span class="field__label">المستودع المستلم</span>
+        <select class="select" (change)="destination.set($any($event.target).value || null)">
+          <option value="">—</option>
+          @for (row of warehouses.tree(); track row.warehouse.id) {
+            <option [value]="row.warehouse.id" [selected]="row.warehouse.id === destination()">{{ row.depth ? '  ↳ ' : '' }}{{ row.warehouse.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    <div class="hint-box">
+      <app-icon name="route" [size]="16" />
+      <div>بعد الحفظ تُكمل الإجراءات في متابعة طلب الشراء: طلب عروض الأسعار ← تقديم الخيارات ← فتح أمر الشراء ← وقت التسليم المقدر ← فحص الجودة. بعدها يُستلم الطلب من شاشة حركة المستودع.</div>
+    </div>
+  }
+
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="creating.set(false)">إلغاء</button>
+    <button type="button" class="btn btn--primary" [disabled]="!selected() || quantity() <= 0" (click)="create()"><app-icon name="check" [size]="16" /> إنشاء الطلب ومتابعة الشراء</button>
+  </ng-container>
+</app-modal>

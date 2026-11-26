@@ -1,0 +1,119 @@
+<div class="card reports">
+  <div class="card__header">
+    <div>
+      <h3 class="card__title"><app-icon name="clipboard" [size]="17" /> التقارير</h3>
+      <p class="card__subtitle">{{ current().hint }} — {{ scopeLabel() }}</p>
+    </div>
+    <div class="row no-print">
+      <button type="button" class="btn btn--sm btn--ghost" (click)="exportCsv()"><app-icon name="download" [size]="14" /> تصدير CSV</button>
+      <button type="button" class="btn btn--sm btn--ghost" (click)="print()"><app-icon name="file" [size]="14" /> طباعة</button>
+    </div>
+  </div>
+
+  <div class="filters no-print">
+    <div class="chips">
+      @for (r of definitions; track r.key) {
+        <button type="button" class="chip" [class.active]="report() === r.key" (click)="report.set(r.key)"><app-icon [name]="r.icon" [size]="13" /> {{ r.label }}</button>
+      }
+    </div>
+    <div class="toolbar">
+      @if (!lockScope()) {
+        <select class="select input--sm" (change)="scope.set($any($event.target).value)">
+          <option value="" [selected]="!scope()">جميع المستودعات</option>
+          @for (row of warehouses.tree(); track row.warehouse.id) {
+            <option [value]="row.warehouse.id" [selected]="row.warehouse.id === scope()">{{ indent(row.depth) }}{{ row.warehouse.name }}</option>
+          }
+        </select>
+      }
+      @if (report() !== 'critical') {
+        <select class="select input--sm" (change)="period.set(+$any($event.target).value)">
+          @for (p of periods; track p) {
+            <option [value]="p" [selected]="p === period()">{{ report() === 'expiry' ? 'خلال ' : 'آخر ' }}{{ p }} يوم</option>
+          }
+        </select>
+      }
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    @switch (report()) {
+      @case ('stagnant') {
+        <table class="table">
+          <thead><tr><th>العنصر</th><th>الرصيد</th><th>القيمة</th><th>آخر صرف</th><th>مدة الركود</th></tr></thead>
+          <tbody>
+            @for (r of stagnant(); track r.material.id) {
+              <tr>
+                <td><a class="title link" [routerLink]="['/warehouse/items', r.material.id]"><strong>{{ r.material.name }}</strong><span class="code">{{ r.material.code }}</span></a></td>
+                <td class="num">{{ r.quantity | num }} {{ unitLabels[r.material.unit] }}</td>
+                <td class="num">{{ r.value | money }}</td>
+                <td class="num muted">{{ r.lastOut ? (r.lastOut | arDate) : 'لم يُصرف' }}</td>
+                <td><span class="badge" [class.badge--danger]="r.idleDays >= 90" [class.badge--warning]="r.idleDays < 90">{{ r.idleDays }} يوم</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5"><app-empty-state icon="archive" title="لا توجد عناصر راكدة في هذه الفترة" /></td></tr>
+            }
+          </tbody>
+        </table>
+      }
+      @case ('moving') {
+        <table class="table">
+          <thead><tr><th>#</th><th>العنصر</th><th>عدد الحركات</th><th>كمية الدخول</th><th>كمية الخروج</th></tr></thead>
+          <tbody>
+            @for (r of moving(); track r.material.id; let i = $index) {
+              <tr>
+                <td class="num muted">{{ i + 1 }}</td>
+                <td><a class="title link" [routerLink]="['/warehouse/items', r.material.id]"><strong>{{ r.material.name }}</strong><span class="code">{{ r.material.code }}</span></a></td>
+                <td class="num"><strong>{{ r.count }}</strong></td>
+                <td class="num pos">+{{ r.inQty | num }} {{ unitLabels[r.material.unit] }}</td>
+                <td class="num neg">−{{ r.outQty | num }} {{ unitLabels[r.material.unit] }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5"><app-empty-state icon="trending" title="لا توجد حركات في هذه الفترة" /></td></tr>
+            }
+          </tbody>
+        </table>
+      }
+      @case ('critical') {
+        <table class="table">
+          <thead><tr><th>العنصر</th><th>الرصيد الكلي</th>@if (scope()) {<th>في النطاق</th>}<th>الحد الأدنى</th><th>الحد الأقصى</th><th>الحالة</th></tr></thead>
+          <tbody>
+            @for (r of critical(); track r.material.id) {
+              <tr>
+                <td><a class="title link" [routerLink]="['/warehouse/items', r.material.id]"><strong>{{ r.material.name }}</strong><span class="code">{{ r.material.code }}</span></a></td>
+                <td class="num"><strong [class]="'level--' + r.level">{{ r.material.stock | num }}</strong> {{ unitLabels[r.material.unit] }}</td>
+                @if (scope()) {<td class="num">{{ r.quantity | num }}</td>}
+                <td class="num">{{ r.material.minStock | num }}</td>
+                <td class="num">{{ r.material.maxStock | num }}</td>
+                <td>
+                  <span class="badge" [class.badge--danger]="r.level === 'empty' || r.level === 'low'" [class.badge--info]="r.level === 'over'">
+                    {{ r.level === 'empty' ? 'نفد المخزون' : r.level === 'low' ? 'تحت الحد الأدنى' : 'فوق الحد الأقصى' }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6"><app-empty-state icon="check-circle" title="جميع العناصر ضمن حدود Min/Max" /></td></tr>
+            }
+          </tbody>
+        </table>
+      }
+      @case ('expiry') {
+        <table class="table">
+          <thead><tr><th>العنصر</th><th>الكمية المتبقية من الدفعة</th><th>الدفعة / المرجع</th><th>تاريخ الانتهاء</th><th>المتبقي</th></tr></thead>
+          <tbody>
+            @for (r of expiry(); track r.material.id + r.expiryDate + r.reference) {
+              <tr>
+                <td><a class="title link" [routerLink]="['/warehouse/items', r.material.id]"><strong>{{ r.material.name }}</strong><span class="code">{{ r.material.code }}</span></a></td>
+                <td class="num">{{ r.quantity | num }} {{ unitLabels[r.material.unit] }}</td>
+                <td class="muted ltr">{{ r.reference }}</td>
+                <td class="num">{{ r.expiryDate | arDate }}</td>
+                <td><span class="badge" [class.badge--danger]="r.days < 0" [class.badge--warning]="r.days >= 0">{{ r.days < 0 ? 'منتهي منذ ' + -r.days + ' يوم' : r.days + ' يوم' }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5"><app-empty-state icon="clock" title="لا توجد دفعات تقترب من نهاية صلاحيتها" /></td></tr>
+            }
+          </tbody>
+        </table>
+      }
+    }
+  </div>
+</div>

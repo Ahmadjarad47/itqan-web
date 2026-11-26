@@ -22,7 +22,8 @@ const EMPTY_QUOTE_DETAILS: Omit<SupplierQuote, 'id' | 'supplierId' | 'unitPrice'
   validUntil: null,
 };
 
-export type NewPurchase =Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId' | 'quantity' | 'unit' | 'priority'>;
+export type NewPurchase = Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId' | 'quantity' | 'unit' | 'priority'> &
+  Partial<Pick<PurchaseRequest, 'materialId' | 'warehouseId'>>;
 
 @Injectable({ providedIn: 'root' })
 export class PurchaseStore extends EntityStore<PurchaseRequest> {
@@ -39,6 +40,8 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
   create(data: NewPurchase): PurchaseRequest {
     const sequence = this.all().length + 1;
     return this.insert({
+      materialId: null,
+      warehouseId: null,
       ...data,
       id: newId('pr'),
       number: `PR-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`,
@@ -88,6 +91,8 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
   protected override normalize(request: PurchaseRequest): PurchaseRequest {
     return {
       ...request,
+      materialId: request.materialId ?? null,
+      warehouseId: request.warehouseId ?? null,
       contacts: request.contacts ?? [],
       stages: request.stages.map((stage) => ({ ...stage, startDate: stage.startDate ?? null })),
       quotes: request.quotes.map((quote) => ({ ...EMPTY_QUOTE_DETAILS, ...quote })),

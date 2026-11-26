@@ -1,0 +1,105 @@
+<app-page-header
+  title="لوحة تحكم المستودعات"
+  subtitle="جميع المستودعات وحركة الدخول والخروج في كل مستودع، مع الإشعارات والتحذيرات والتقارير"
+  eyebrow="إدارة المستودعات"
+  icon="warehouse"
+>
+  <a class="btn" routerLink="/warehouse/movements"><app-icon name="refresh" [size]="17" /> حركة المستودع</a>
+  <button *appCan="'warehouses.manage'" type="button" class="btn btn--primary" (click)="openCreate()"><app-icon name="plus" [size]="17" /> إنشاء مستودع</button>
+</app-page-header>
+
+@let t = totals();
+<section class="kpis">
+  <app-stat-card label="المستودعات" [value]="t.warehouses" icon="warehouse" [hint]="t.shelves + ' رف مرمّز'" />
+  <app-stat-card label="قيمة المخزون" [value]="(t.value | money: true)" icon="coins" tone="accent" [hint]="t.items + ' عنصر لديه رصيد'" />
+  <app-stat-card label="حركات الدخول (30 يوم)" [value]="t.inCount" icon="download" tone="success" [hint]="t.awaitingReceipt + ' طلب توريد بانتظار الاستلام'" />
+  <app-stat-card label="حركات الخروج (30 يوم)" [value]="t.outCount" icon="upload" tone="info" [hint]="t.openRequisitions + ' طلب احتياج مفتوح'" />
+  <app-stat-card label="تنبيهات" [value]="alertCounts().all" icon="bell" [tone]="alertCounts().danger ? 'danger' : alertCounts().warning ? 'warning' : 'success'" />
+</section>
+
+<div class="layout">
+  <section class="card sites">
+    <div class="card__header">
+      <div>
+        <h3 class="card__title"><app-icon name="building" [size]="17" /> المستودعات وهيكليتها</h3>
+        <p class="card__subtitle">اختر مستودعاً لعرض الرفوف والعناصر وكمياتها وحركته التفصيلية</p>
+      </div>
+    </div>
+    <div class="card__body">
+      <div class="site-list">
+        @for (c of cards(); track c.warehouse.id) {
+          <article class="site" [style.--depth]="c.depth" [class.site--child]="c.depth > 0" (click)="open(c.warehouse)" tabindex="0" (keydown.enter)="open(c.warehouse)">
+            <div class="site__head">
+              <span class="site__icon"><app-icon [name]="c.depth ? 'git-merge' : 'warehouse'" [size]="18" /></span>
+              <div class="site__name">
+                <strong>{{ c.warehouse.name }}</strong>
+                <span class="subtle"><span class="code">{{ c.warehouse.code }}</span> · {{ c.manager?.name ?? 'بدون مسؤول' }}</span>
+              </div>
+              <button
+                *appCan="'warehouses.manage'"
+                type="button"
+                class="btn btn--ghost btn--sm"
+                title="إضافة مستودع تابع"
+                (click)="$event.stopPropagation(); openCreate(c.warehouse.id)"
+              ><app-icon name="plus" [size]="14" /> فرعي</button>
+            </div>
+            <div class="site__stats">
+              <div><span>العناصر</span><strong class="num">{{ c.summary.items }}</strong></div>
+              <div><span>الرفوف</span><strong class="num">{{ c.warehouse.shelves.length }}</strong></div>
+              <div><span>القيمة</span><strong class="num">{{ c.summary.value | money: true }}</strong></div>
+              @if (c.children) {
+                <div><span>فرعية</span><strong class="num">{{ c.children }}</strong></div>
+              }
+            </div>
+            <div class="site__flow">
+              <div class="flow">
+                <span class="flow__label"><app-icon name="download" [size]="12" /> دخول</span>
+                <span class="flow__bar flow__bar--in"><span [style.width.%]="c.inRatio"></span></span>
+                <span class="num">{{ c.summary.inCount }}</span>
+              </div>
+              <div class="flow">
+                <span class="flow__label"><app-icon name="upload" [size]="12" /> خروج</span>
+                <span class="flow__bar flow__bar--out"><span [style.width.%]="c.outRatio"></span></span>
+                <span class="num">{{ c.summary.outCount }}</span>
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <app-empty-state icon="warehouse" title="لا توجد مستودعات بعد" text="ابدأ بإنشاء مستودع ثم أضف الرفوف ورمّزها." />
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="card alerts">
+    <div class="card__header">
+      <h3 class="card__title"><app-icon name="bell" [size]="17" /> الإشعارات والتحذيرات</h3>
+    </div>
+    <div class="alert-filters">
+      <button type="button" class="chip" [class.active]="alertFilter() === 'all'" (click)="alertFilter.set('all')">الكل <span class="count num">{{ alertCounts().all }}</span></button>
+      <button type="button" class="chip" [class.active]="alertFilter() === 'danger'" (click)="alertFilter.set('danger')">حرجة <span class="count num">{{ alertCounts().danger }}</span></button>
+      <button type="button" class="chip" [class.active]="alertFilter() === 'warning'" (click)="alertFilter.set('warning')">تحذير <span class="count num">{{ alertCounts().warning }}</span></button>
+      <button type="button" class="chip" [class.active]="alertFilter() === 'info'" (click)="alertFilter.set('info')">معلومات <span class="count num">{{ alertCounts().info }}</span></button>
+    </div>
+    <div class="alert-list">
+      @for (a of alerts(); track a.id) {
+        <a class="alert" [class]="'alert alert--' + a.tone" [routerLink]="a.link">
+          <span class="alert__icon"><app-icon [name]="a.icon" [size]="15" /></span>
+          <span class="alert__text">
+            <strong>{{ a.title }}</strong>
+            <small>{{ a.text }}</small>
+          </span>
+        </a>
+      } @empty {
+        <app-empty-state icon="check-circle" title="لا توجد تنبيهات" />
+      }
+    </div>
+  </section>
+</div>
+
+<div class="stack">
+  <app-movement-log heading="آخر 10 حركات في جميع المستودعات" />
+  <app-warehouse-reports />
+</div>
+
+<app-warehouse-form-dialog [(open)]="creating" [parentId]="parentForNew()" />

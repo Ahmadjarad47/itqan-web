@@ -1,6 +1,30 @@
-# منظومة تخطيط موارد المؤسسات الصناعية (ERP) — واجهات Angular
+# Itqan Web — إتقان: منصة تخطيط التصنيع
 
-واجهة أمامية كاملة (بدون Backend) لمتطلبات وثيقة SRS: شجرة المنتج المرئية، التكلفة التراكمية، قرار التصنيع/الشراء، تدفق الشراء، مسار الإنتاج ومخطط جانت، وتتبع المهام. مبنية بالهوية البصرية السورية (الأخضر الحرجي، القمحي الذهبي، البني العميق) وباتجاه RTL.
+**From product tree to finished product.** Arabic-first Angular 22 client for **Itqan**, a manufacturing planning platform.
+
+> Backend: [`itqan-backend`](https://github.com/Ahmadjarad47/itqan-backend) (.NET 10, Clean Architecture, CQRS). This repo is the front end; it also runs on its own with seeded demo data.
+
+![Angular 22](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white) ![RTL](https://img.shields.io/badge/UI-Arabic%20RTL-2E7D32) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
+## The idea
+
+A manufacturer building a complex product (a machine, a vehicle, a system) has to answer the same questions for thousands of parts: *what is it made of, what does it cost, do we make it or buy it, who supplies it, when is it produced, and is it in stock?* Usually those answers sit in separate spreadsheets that never agree.
+
+**Itqan** (إتقان, "mastery and precision in craft") connects them all through the **product tree (BOM)**:
+
+1. **Engineer:** build an unlimited-depth product tree per project, with drawings, quality files and materials on every part.
+2. **Cost:** costs roll up bottom-up through the tree, live.
+3. **Decide:** every part gets a mandatory **MAKE or BUY** decision, supported by multi-criteria scoring (MCDM).
+4. **Buy:** BUY parts flow into a 10-stage purchasing workflow (requests, RFQs, quotes, supplier comparison, receipt into the warehouse).
+5. **Make:** MAKE parts flow into production routing (operations, stations, setup and run times, consumables, quality checks) on a Gantt chart.
+6. **Store:** warehouses, stock movements and FIFO costing.
+7. **Track:** tasks for managers and employees, roles and permissions, and admin-defined custom fields everywhere.
+
+---
+
+## نبذة بالعربية
+
+واجهة أمامية كاملة لمتطلبات وثيقة SRS: شجرة المنتج المرئية، التكلفة التراكمية، قرار التصنيع/الشراء، تدفق الشراء، مسار الإنتاج ومخطط جانت، المستودعات، وتتبع المهام. مبنية بالهوية البصرية السورية (الأخضر الحرجي، القمحي الذهبي، البني العميق) وباتجاه RTL.
 
 ## التشغيل
 

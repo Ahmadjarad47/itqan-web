@@ -1,0 +1,210 @@
+<div class="reason">
+  <label class="field">
+    <span class="field__label">سبب خروج المواد</span>
+    <select class="select" (change)="reason.set($any($event.target).value)">
+      @for (r of reasons; track r.key) {
+        <option [value]="r.key" [selected]="r.key === reason()">{{ r.label }}</option>
+      }
+    </select>
+  </label>
+</div>
+
+@if (reason() === 'requisition') {
+  <section class="card form-card">
+    <div class="card__header">
+      <div>
+        <h3 class="card__title"><app-icon name="inbox" [size]="17" /> طلبات الاحتياج</h3>
+        <p class="card__subtitle">يستعرضها عمال المستودع ويبدؤون تجهيز العناصر ثم يحدّثون الحالة، وعند التسليم يُحدَّث المخزون وسجل العنصر</p>
+      </div>
+      <div class="row" *appCan="'inventory.manage'">
+        <button type="button" class="btn btn--sm" (click)="newRequisition('paper')"><app-icon name="file" [size]="14" /> طلب ورقي</button>
+        <button type="button" class="btn btn--sm btn--primary" (click)="newRequisition('system')"><app-icon name="plus" [size]="14" /> طلب احتياج جديد</button>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="chips">
+        <button type="button" class="chip" [class.active]="statusFilter() === 'open'" (click)="statusFilter.set('open')">المفتوحة <span class="count num">{{ counts().open }}</span></button>
+        <button type="button" class="chip" [class.active]="statusFilter() === 'new'" (click)="statusFilter.set('new')">جديد <span class="count num">{{ counts().new }}</span></button>
+        <button type="button" class="chip" [class.active]="statusFilter() === 'preparing'" (click)="statusFilter.set('preparing')">جاري التجهيز <span class="count num">{{ counts().preparing }}</span></button>
+        <button type="button" class="chip" [class.active]="statusFilter() === 'ready'" (click)="statusFilter.set('ready')">جاهز <span class="count num">{{ counts().ready }}</span></button>
+        <button type="button" class="chip" [class.active]="statusFilter() === 'delivered'" (click)="statusFilter.set('delivered')">تم التسليم</button>
+        <button type="button" class="chip" [class.active]="statusFilter() === ''" (click)="statusFilter.set('')">الكل</button>
+      </div>
+      <div class="toolbar">
+        <div class="search-box">
+          <app-icon name="search" [size]="16" />
+          <input class="input input--sm" placeholder="رقم الطلب أو الجهة" [value]="reqSearch()" (input)="reqSearch.set($any($event.target).value)" />
+        </div>
+        <select class="select input--sm" (change)="reqSort.set($any($event.target).value)">
+          <option value="due">ترتيب: موعد التسليم</option>
+          <option value="request">ترتيب: تاريخ الطلب</option>
+          <option value="status">ترتيب: الحالة</option>
+          <option value="number">ترتيب: رقم الطلب</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>رقم الطلب</th><th>الجهة / القسم</th><th>المشروع</th><th>تاريخ الطلب</th><th>يجب التسليم في</th><th>العناصر</th><th>الحالة</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track r.requisition.id) {
+            <tr>
+              <td>
+                <strong class="ltr">{{ r.requisition.number }}</strong>
+                <div><span class="badge" [class.badge--accent]="r.requisition.origin === 'paper'">{{ r.requisition.origin === 'paper' ? 'ورقي' : 'من النظام' }}</span></div>
+              </td>
+              <td>{{ r.party }}<div class="subtle">{{ r.requisition.requester }}</div></td>
+              <td>@if (r.project) {<span class="code">{{ r.project.code }}</span>} @else {—}</td>
+              <td class="num nowrap">{{ r.requisition.requestDate | arDate }}</td>
+              <td class="num nowrap" [class.overdue]="r.overdue">
+                {{ r.requisition.dueDate | arDate }}
+                @if (r.overdue) {
+                  <div><span class="badge badge--danger">متأخر {{ -r.daysLeft }} يوم</span></div>
+                }
+              </td>
+              <td>
+                @for (l of r.requisition.lines; track l.id) {
+                  @let m = inventory.find(l.materialId);
+                  <div class="subtle nowrap">{{ m?.code }} × <span class="num">{{ l.quantity | num }}</span></div>
+                }
+                @if (!r.available && r.requisition.status !== 'delivered') {
+                  <span class="badge badge--warning">رصيد غير كافٍ</span>
+                }
+              </td>
+              <td>
+                @if (r.requisition.status === 'delivered' || r.requisition.status === 'cancelled') {
+                  <span class="badge" [class.badge--success]="r.requisition.status === 'delivered'">{{ statusLabels[r.requisition.status] }}</span>
+                  @if (r.requisition.deliveredAt) {
+                    <div class="subtle num">{{ r.requisition.deliveredAt | arDate }}</div>
+                  }
+                } @else {
+                  <select class="select input--sm status-select" (change)="setStatus(r.requisition, $any($event.target).value); $any($event.target).value = r.requisition.status">
+                    @for (s of statuses; track s) {
+                      <option [value]="s" [selected]="s === r.requisition.status">{{ statusLabels[s] }}</option>
+                    }
+                  </select>
+                }
+              </td>
+              <td>
+                @if (r.requisition.status !== 'delivered' && r.requisition.status !== 'cancelled') {
+                  <button *appCan="'inventory.manage'" type="button" class="btn btn--sm btn--primary nowrap" (click)="openIssue(r.requisition)"><app-icon name="upload" [size]="14" /> صرف وتسليم</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8"><app-empty-state icon="inbox" title="لا توجد طلبات احتياج مطابقة" /></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+} @else {
+  <section class="card form-card" *appCan="'inventory.manage'">
+    <div class="card__header">
+      <h3 class="card__title"><app-icon [name]="reason() === 'transfer' ? 'route' : 'trash'" [size]="17" /> {{ reason() === 'transfer' ? 'مناقلة بين المستودعات' : 'شطب من المخزون (إتلاف)' }}</h3>
+    </div>
+    <div class="card__body">
+      <div class="form-grid">
+        <label class="field span-2">
+          <span class="field__label">رمز بطاقة العنصر *</span>
+          <app-item-picker [value]="itemId()" (valueChange)="selectItem($event)" />
+        </label>
+        <label class="field span-2">
+          <span class="field__label">من (الموقع الحالي) *</span>
+          <app-location-picker [stockOf]="itemId()" [(warehouseId)]="fromWarehouse" [(shelfId)]="fromShelf" />
+        </label>
+        @if (reason() === 'transfer') {
+          <label class="field span-2">
+            <span class="field__label">إلى (المستودع والرف) *</span>
+            <app-location-picker [(warehouseId)]="toWarehouse" [(shelfId)]="toShelf" />
+          </label>
+        }
+        <label class="field">
+          <span class="field__label">الكمية *</span>
+          <input class="input" type="number" min="0" step="any" [value]="quantity() || ''" (input)="quantity.set(+$any($event.target).value)" />
+        </label>
+        <label class="field">
+          <span class="field__label">التاريخ</span>
+          <input class="input" type="date" [value]="date()" (change)="date.set($any($event.target).value)" />
+        </label>
+        <label class="field span-2">
+          <span class="field__label">{{ reason() === 'writeoff' ? 'سبب الشطب *' : 'المرجع' }}</span>
+          <input class="input" [value]="reference()" (input)="reference.set($any($event.target).value)" [placeholder]="reason() === 'writeoff' ? 'تالف، منتهي الصلاحية، مفقود...' : 'رقم إذن المناقلة'" />
+        </label>
+      </div>
+      @if (reason() === 'writeoff' && moveCost()) {
+        <div class="hint-box hint-box--warning preview"><app-icon name="coins" [size]="16" /> <div>تكلفة الكمية المشطوبة وفق طريقة البطاقة: <strong class="num">{{ moveCost() | money }}</strong></div></div>
+      }
+      <div class="actions">
+        @if (moveError(); as e) {
+          <span class="blocker"><app-icon name="alert" [size]="14" /> {{ e }}</span>
+        }
+        <button type="button" class="btn btn--primary" [disabled]="!!moveError()" (click)="confirmMove()"><app-icon name="check" [size]="16" /> {{ reason() === 'transfer' ? 'تنفيذ المناقلة' : 'تسجيل الشطب' }}</button>
+      </div>
+    </div>
+  </section>
+}
+
+<app-movement-log heading="سجل الحركات" [limit]="15" />
+
+<app-requisition-form-dialog [(open)]="formOpen" [origin]="formOrigin()" (saved)="formOrigin() === 'paper' ? openIssue($event) : null" />
+
+<app-modal [(open)]="issueOpen" [title]="'صرف طلب الاحتياج ' + (issuing()?.number ?? '')" width="1000px">
+  @if (issuing(); as r) {
+    <div class="info-grid">
+      <div><span>الجهة / القسم</span><strong>{{ departments.find(r.departmentId)?.name ?? r.requester }}</strong></div>
+      <div><span>مقدم الطلب</span><strong>{{ r.requester || '—' }}</strong></div>
+      <div><span>تاريخ الطلب</span><strong class="num">{{ r.requestDate | arDate }}</strong></div>
+      <div><span>يجب التسليم في</span><strong class="num" [class.overdue]="r.dueDate < today">{{ r.dueDate | arDate }}</strong></div>
+      <div><span>المشروع</span><strong>{{ projects.find(r.projectId)?.name ?? '—' }}</strong></div>
+      <div><span>تاريخ الصرف</span><input class="input input--sm" type="date" [value]="issueDate()" (change)="issueDate.set($any($event.target).value)" /></div>
+    </div>
+    @if (r.notes) {
+      <p class="subtle spaced">ملاحظات: {{ r.notes }}</p>
+    }
+    <div class="table-wrap spaced">
+      <table class="table req-lines">
+        <thead>
+          <tr><th>العنصر</th><th>المطلوب</th><th>ملاحظات</th><th>موقع الصرف</th><th>الكمية المصروفة</th><th>سعر التكلفة</th><th>سعر البيع (اختياري)</th></tr>
+        </thead>
+        <tbody>
+          @for (l of issueLines(); track l.lineId) {
+            @let m = inventory.find(l.materialId);
+            <tr>
+              <td><strong>{{ m?.name }}</strong><div class="code">{{ m?.code }}</div></td>
+              <td class="num nowrap">{{ l.requested | num }} {{ m ? unitLabels[m.unit] : '' }}</td>
+              <td class="subtle">{{ l.note || '—' }}</td>
+              <td><app-location-picker [small]="true" [stockOf]="l.materialId" [warehouseId]="l.warehouseId" [shelfId]="l.shelfId" (warehouseIdChange)="patchLine(l.lineId, { warehouseId: $event })" (shelfIdChange)="patchLine(l.lineId, { shelfId: $event })" /></td>
+              <td style="width: 110px">
+                <input class="input input--sm" type="number" min="0" step="any" [value]="l.quantity" (input)="patchLine(l.lineId, { quantity: +$any($event.target).value })" />
+                <small class="subtle">متوفر {{ available(l.materialId, l.warehouseId, l.shelfId) | num }}</small>
+              </td>
+              <td class="num nowrap">{{ lineCost(l) | money }}<div class="subtle">{{ m?.costMethod === 'fifo' ? 'FIFO' : 'متوسط' }}</div></td>
+              <td style="width: 140px">
+                <div class="row">
+                  <input class="input input--sm" type="number" min="0" step="any" [value]="l.sellPrice ?? ''" (input)="patchLine(l.lineId, { sellPrice: $any($event.target).value === '' ? null : +$any($event.target).value })" />
+                  <button type="button" class="btn btn--ghost btn--icon btn--sm" title="سعر البيع المقترح من هامش البطاقة" (click)="suggestSell(l)"><app-icon name="zap" [size]="13" /></button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="row">
+      <span class="subtle">تكلفة البضاعة المصروفة: <strong class="num">{{ issueTotals().cost | money }}</strong></span>
+      @if (issueTotals().sale) {
+        <span class="subtle">· قيمة البيع: <strong class="num">{{ issueTotals().sale | money }}</strong></span>
+      }
+    </div>
+  }
+  <ng-container modal-actions>
+    @if (issueError(); as e) {
+      <span class="blocker"><app-icon name="alert" [size]="14" /> {{ e }}</span>
+    }
+    <button type="button" class="btn" (click)="issueOpen.set(false)">إلغاء</button>
+    <button type="button" class="btn btn--primary" [disabled]="!!issueError()" (click)="confirmIssue()"><app-icon name="check" [size]="16" /> إتمام الصرف والتسليم</button>
+  </ng-container>
+</app-modal>

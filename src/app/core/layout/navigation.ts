@@ -29,7 +29,15 @@ export const NAVIGATION: readonly NavGroup[] = [
     items: [
       { label: 'طلبات الشراء', icon: 'cart', link: '/procurement/requests', permission: 'procurement.view' },
       { label: 'الموردون', icon: 'truck', link: '/procurement/suppliers', permission: 'procurement.view' },
-      { label: 'المستودع', icon: 'warehouse', link: '/inventory', permission: 'inventory.view' },
+    ],
+  },
+  {
+    title: 'إدارة المستودعات',
+    items: [
+      { label: 'لوحة المستودعات', icon: 'warehouse', link: '/warehouse/dashboard', permission: 'inventory.view' },
+      { label: 'بطاقات المنتجات', icon: 'package', link: '/warehouse/items', permission: 'inventory.view' },
+      { label: 'طلبات التوريد', icon: 'truck', link: '/warehouse/supply', permission: 'inventory.view' },
+      { label: 'حركة المستودع', icon: 'refresh', link: '/warehouse/movements', permission: 'inventory.view' },
     ],
   },
   {

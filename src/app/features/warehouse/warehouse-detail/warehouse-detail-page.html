@@ -1,0 +1,188 @@
+@if (warehouse(); as w) {
+  <nav class="crumbs no-print">
+    <a routerLink="/warehouse/dashboard">لوحة المستودعات</a>
+    @if (parent(); as p) {
+      <app-icon name="chevron-left" [size]="14" />
+      <a [routerLink]="['/warehouse/sites', p.id]">{{ p.name }}</a>
+    }
+    <app-icon name="chevron-left" [size]="14" />
+    <span>{{ w.name }}</span>
+  </nav>
+
+  <app-page-header [title]="w.name" [subtitle]="w.address || 'بدون عنوان'" [eyebrow]="w.code" icon="warehouse">
+    <ng-container *appCan="'warehouses.manage'">
+      <button type="button" class="btn" (click)="editing.set(true)"><app-icon name="edit" [size]="16" /> تعديل البيانات</button>
+      <button type="button" class="btn" (click)="addingChild.set(true)"><app-icon name="git-merge" [size]="16" /> مستودع تابع</button>
+      <button type="button" class="btn btn--ghost btn--danger" (click)="removeWarehouse()"><app-icon name="trash" [size]="16" /></button>
+    </ng-container>
+  </app-page-header>
+
+  @let s = summary();
+  <section class="kpis">
+    <app-stat-card label="العناصر الموجودة" [value]="s?.items ?? 0" icon="package" [hint]="'يشمل المستودعات التابعة'" />
+    <app-stat-card label="قيمة المخزون" [value]="((s?.value ?? 0) | money: true)" icon="coins" tone="accent" />
+    <app-stat-card label="دخول (30 يوم)" [value]="s?.inCount ?? 0" icon="download" tone="success" [hint]="'كمية ' + ((s?.inQty ?? 0) | num)" />
+    <app-stat-card label="خروج (30 يوم)" [value]="s?.outCount ?? 0" icon="upload" tone="info" [hint]="'كمية ' + ((s?.outQty ?? 0) | num)" />
+  </section>
+
+  <section class="card info-card">
+    <div class="card__body info-grid">
+      <div><span>رمز المستودع</span><strong class="code">{{ w.code }}</strong></div>
+      <div><span>المسؤول</span><strong>{{ manager()?.name ?? '—' }}</strong></div>
+      <div><span>أرقام التواصل</span><strong class="ltr">{{ w.phones || '—' }}</strong></div>
+      <div><span>التبعية</span><strong>{{ parent()?.name ?? 'مستودع رئيسي' }}</strong></div>
+      <div><span>الرفوف</span><strong class="num">{{ w.shelves.length }}</strong></div>
+      <div>
+        <span>المستودعات التابعة</span>
+        <strong>
+          @for (c of children(); track c.id; let last = $last) {
+            <a [routerLink]="['/warehouse/sites', c.id]">{{ c.name }}</a>{{ last ? '' : '، ' }}
+          } @empty {
+            —
+          }
+        </strong>
+      </div>
+    </div>
+  </section>
+
+  <div class="segmented tabs no-print">
+    <button type="button" [class.active]="tab() === 'items'" (click)="tab.set('items')"><app-icon name="package" [size]="15" /> العناصر والكميات</button>
+    <button type="button" [class.active]="tab() === 'shelves'" (click)="tab.set('shelves')"><app-icon name="grid" [size]="15" /> الرفوف</button>
+    <button type="button" [class.active]="tab() === 'movements'" (click)="tab.set('movements')"><app-icon name="refresh" [size]="15" /> حركة المخزون</button>
+    <button type="button" [class.active]="tab() === 'reports'" (click)="tab.set('reports')"><app-icon name="clipboard" [size]="15" /> التقارير</button>
+  </div>
+
+  @switch (tab()) {
+    @case ('items') {
+      <section class="card">
+        <div class="filters">
+          <div class="toolbar">
+            <div class="search-box">
+              <app-icon name="search" [size]="16" />
+              <input class="input input--sm" placeholder="بحث بالرمز أو الاسم" [value]="search()" (input)="search.set($any($event.target).value)" />
+            </div>
+            <select class="select input--sm" (change)="shelfFilter.set($any($event.target).value)">
+              <option value="">كل الرفوف</option>
+              @for (sh of w.shelves; track sh.id) {
+                <option [value]="sh.id">{{ sh.code }}{{ sh.name ? ' — ' + sh.name : '' }}</option>
+              }
+            </select>
+            @if (children().length) {
+              <label class="checkbox"><input type="checkbox" [checked]="includeChildren()" (change)="includeChildren.set($any($event.target).checked)" /> يشمل المستودعات التابعة</label>
+            }
+          </div>
+          <span class="subtle">القيمة: <strong class="num">{{ stockValue() | money }}</strong></span>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>العنصر</th><th>الموقع (المستودع · الرف)</th><th>الكمية</th><th>تكلفة الوحدة</th><th>القيمة</th><th>حالة البطاقة</th></tr>
+            </thead>
+            <tbody>
+              @for (r of stockRows(); track r.material.id + r.location.warehouseId + r.location.shelfId) {
+                <tr class="clickable" [routerLink]="['/warehouse/items', r.material.id]">
+                  <td><div class="title"><strong>{{ r.material.name }}</strong><span class="code">{{ r.material.code }}</span></div></td>
+                  <td class="muted">{{ r.place }}</td>
+                  <td class="num"><strong>{{ r.location.quantity | num }}</strong> {{ unitLabels[r.material.unit] }}</td>
+                  <td class="num">{{ r.material.unitCost | money }}</td>
+                  <td class="num">{{ r.value | money }}</td>
+                  <td>
+                    @switch (r.level) {
+                      @case ('low') { <span class="badge badge--danger">تحت الحد الأدنى</span> }
+                      @case ('empty') { <span class="badge badge--danger">نفد</span> }
+                      @case ('over') { <span class="badge badge--info">فوق الحد الأقصى</span> }
+                      @default { <span class="badge badge--success">ضمن الحدود</span> }
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6"><app-empty-state icon="package" title="لا توجد عناصر في هذا المستودع" /></td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+    @case ('shelves') {
+      <section class="card">
+        <div class="card__header">
+          <div>
+            <h3 class="card__title"><app-icon name="grid" [size]="17" /> رفوف المستودع وترميزها</h3>
+            <p class="card__subtitle">كل رف له رمز فريد داخل المستودع ويُستخدم في تحديد مواقع العناصر</p>
+          </div>
+          <button *appCan="'warehouses.manage'" type="button" class="btn btn--primary btn--sm" (click)="openShelf()"><app-icon name="plus" [size]="15" /> إضافة رفوف</button>
+        </div>
+        <div class="card__body">
+          <div class="shelves">
+            @for (sh of w.shelves; track sh.id) {
+              @let st = shelfStats().get(sh.id);
+              <div class="shelf">
+                <span class="shelf__code">{{ sh.code }}</span>
+                <span class="shelf__name">{{ sh.name || 'بدون وصف' }}</span>
+                <span class="subtle">{{ st?.items ?? 0 }} عنصر · {{ (st?.quantity ?? 0) | num }} وحدة</span>
+                <div class="shelf__actions" *appCan="'warehouses.manage'">
+                  <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="تعديل" (click)="openShelf(sh)"><app-icon name="edit" [size]="14" /></button>
+                  <button type="button" class="btn btn--ghost btn--icon btn--sm" aria-label="حذف" (click)="removeShelf(sh)"><app-icon name="trash" [size]="14" /></button>
+                </div>
+              </div>
+            } @empty {
+              <app-empty-state icon="grid" title="لا توجد رفوف" text="أضف رفوفاً ورمّزها لتحديد مواقع العناصر بدقة." />
+            }
+          </div>
+        </div>
+      </section>
+    }
+    @case ('movements') {
+      <app-movement-log [warehouseIds]="scope()" heading="آخر 10 حركات في المستودع" />
+    }
+    @case ('reports') {
+      <app-warehouse-reports [warehouseId]="w.id" [lockScope]="true" />
+    }
+  }
+
+  <app-warehouse-form-dialog [(open)]="editing" [editing]="w" />
+  <app-warehouse-form-dialog [(open)]="addingChild" [parentId]="w.id" />
+
+  <app-modal [(open)]="shelfOpen" [title]="shelfEditing() ? 'تعديل الرف' : 'إضافة رفوف'" width="520px">
+    <h4 class="section-title">{{ shelfEditing() ? 'بيانات الرف' : 'رف واحد' }}</h4>
+    <div class="form-grid">
+      <label class="field">
+        <span class="field__label">رمز الرف *</span>
+        <input class="input ltr" [value]="shelfCode()" (input)="shelfCode.set($any($event.target).value.toUpperCase())" placeholder="A-05" />
+        @if (shelfCodeTaken()) {
+          <span class="error">الرمز مستخدم في هذا المستودع</span>
+        }
+      </label>
+      <label class="field">
+        <span class="field__label">الوصف</span>
+        <input class="input" [value]="shelfName()" (input)="shelfName.set($any($event.target).value)" placeholder="مثال: رف المواد الثقيلة" />
+      </label>
+    </div>
+    <div class="row end">
+      <button type="button" class="btn btn--primary btn--sm" [disabled]="!shelfCode().trim() || shelfCodeTaken()" (click)="saveShelf()"><app-icon name="check" [size]="15" /> حفظ الرف</button>
+    </div>
+    @if (!shelfEditing()) {
+      <div class="divider"></div>
+      <h4 class="section-title">ترميز مجموعة رفوف تلقائياً</h4>
+      <div class="form-grid">
+        <label class="field">
+          <span class="field__label">البادئة</span>
+          <input class="input ltr" [value]="rangePrefix()" (input)="rangePrefix.set($any($event.target).value.toUpperCase())" />
+        </label>
+        <label class="field">
+          <span class="field__label">العدد</span>
+          <input class="input" type="number" min="1" max="200" [value]="rangeCount()" (input)="rangeCount.set(+$any($event.target).value)" />
+        </label>
+      </div>
+      <p class="subtle">مثال: {{ (rangePrefix() || 'A') }}-01 … {{ (rangePrefix() || 'A') }}-{{ rangeCount() < 10 ? '0' + rangeCount() : rangeCount() }} (يتم تخطي الرموز المستخدمة)</p>
+    }
+    <ng-container modal-actions>
+      <button type="button" class="btn" (click)="shelfOpen.set(false)">إغلاق</button>
+      @if (!shelfEditing()) {
+        <button type="button" class="btn btn--accent" [disabled]="!rangePrefix().trim() || rangeCount() < 1" (click)="addRange()"><app-icon name="layers" [size]="15" /> إنشاء المجموعة</button>
+      }
+    </ng-container>
+  </app-modal>
+} @else {
+  <app-empty-state icon="warehouse" title="المستودع غير موجود" text="ربما تم حذفه." />
+}

@@ -11,7 +11,7 @@ export interface Entity {
   readonly id: EntityId;
 }
 
-export type Unit = 'pcs' | 'kg' | 'm' | 'm2' | 'l' | 'set';
+export type Unit = 'pcs' | 'kg' | 'm' | 'm2' | 'l' | 'set' | 'pack';
 
 export const UNIT_LABELS: Record<Unit, string> = {
   pcs: 'قطعة',
@@ -20,4 +20,5 @@ export const UNIT_LABELS: Record<Unit, string> = {
   m2: 'م²',
   l: 'لتر',
   set: 'طقم',
+  pack: 'باكيت',
 };

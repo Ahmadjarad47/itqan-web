@@ -1,0 +1,230 @@
+<section class="card form-card" *appCan="'inventory.manage'">
+  <div class="card__header">
+    <div>
+      <h3 class="card__title"><app-icon name="download" [size]="17" /> تسجيل الوارد</h3>
+      <p class="card__subtitle">تسجيل دخول المواد إلى المخزن وتحديث سعر القطعة وفق طريقة التكلفة المعتمدة في البطاقة</p>
+    </div>
+  </div>
+  <div class="card__body">
+    <div class="form-grid">
+      <label class="field span-2">
+        <span class="field__label">1. رمز بطاقة العنصر *</span>
+        <app-item-picker [value]="itemId()" (valueChange)="selectItem($event)" />
+      </label>
+      <label class="field">
+        <span class="field__label">2. الكمية {{ material() ? '(' + unitLabels[material()!.unit] + ')' : '' }} *</span>
+        <input class="input" type="number" min="0" step="any" [value]="quantity() || ''" (input)="quantity.set(+$any($event.target).value)" />
+      </label>
+      <label class="field">
+        <span class="field__label">3. التاريخ *</span>
+        <input class="input" type="date" [value]="date()" (change)="date.set($any($event.target).value)" />
+      </label>
+
+      <label class="field">
+        <span class="field__label">4. طريقة الحصول على العنصر *</span>
+        <select class="select" (change)="setSource($any($event.target).value)">
+          @for (s of sources; track s) {
+            <option [value]="s" [selected]="s === source()">{{ sourceLabels[s] }}</option>
+          }
+        </select>
+      </label>
+      @switch (source()) {
+        @case ('supply') {
+          <label class="field span-2">
+            <span class="field__label">رقم طلب التوريد (اجتاز فحص الجودة) *</span>
+            <select class="select" (change)="selectSupply($any($event.target).value)">
+              <option value="">— اختر الطلب —</option>
+              @for (r of awaiting(); track r.id) {
+                <option [value]="r.id" [selected]="r.id === purchaseId()">{{ r.number }} — {{ r.title }} ({{ r.quantity }} {{ unitLabels[r.unit] }})</option>
+              }
+            </select>
+            @if (!awaiting().length) {
+              <span class="subtle">لا توجد طلبات توريد اجتازت الجودة{{ itemId() ? ' لهذا العنصر' : '' }}. <a routerLink="/warehouse/supply">طلبات التوريد</a></span>
+            }
+          </label>
+        }
+        @case ('invoice') {
+          <label class="field">
+            <span class="field__label">رقم فاتورة الشراء *</span>
+            <input class="input ltr" [value]="documentNo()" (input)="documentNo.set($any($event.target).value)" placeholder="INV-..." />
+          </label>
+          <label class="field">
+            <span class="field__label">المورد</span>
+            <select class="select" (change)="supplierId.set($any($event.target).value || null)">
+              <option value="">—</option>
+              @for (s of suppliers.sorted(); track s.id) {
+                <option [value]="s.id" [selected]="s.id === supplierId()">{{ s.name }}</option>
+              }
+            </select>
+          </label>
+        }
+        @default {
+          <label class="field span-2">
+            <span class="field__label">رقم المستند / المرجع</span>
+            <input class="input" [value]="documentNo()" (input)="documentNo.set($any($event.target).value)" />
+          </label>
+        }
+      }
+
+      <label class="field">
+        <span class="field__label">5. سعر الشراء للوحدة *</span>
+        <input class="input" type="number" min="0" step="any" [value]="unitCost()" (input)="unitCost.set(+$any($event.target).value)" />
+      </label>
+      <label class="field span-2">
+        <span class="field__label">الموقع (المستودع والرف) *</span>
+        <app-location-picker [(warehouseId)]="warehouseId" [(shelfId)]="shelfId" />
+      </label>
+      <label class="field">
+        <span class="field__label">تاريخ انتهاء الصلاحية</span>
+        <input class="input" type="date" [value]="expiryDate()" (change)="expiryDate.set($any($event.target).value)" />
+      </label>
+      <label class="field span-2">
+        <span class="field__label">ملاحظات</span>
+        <input class="input" [value]="note()" (input)="note.set($any($event.target).value)" />
+      </label>
+      @if (source() === 'invoice') {
+        <div class="field span-full">
+          <span class="field__label">صورة / ملف الفاتورة</span>
+          <app-file-drop kind="document" [compact]="true" label="أرفق الفاتورة" (added)="addFiles($event)" />
+          <app-attachment-list [attachments]="attachments()" emptyText="" (removed)="removeFile($event)" />
+        </div>
+      }
+    </div>
+
+    @if (costPreview(); as p) {
+      <div class="hint-box preview">
+        <app-icon name="coins" [size]="16" />
+        <div>
+          قيمة الإدخال <strong class="num">{{ quantity() * unitCost() | money }}</strong> —
+          @if (material()!.costMethod === 'average') {
+            متوسط تكلفة الوحدة بعد الإدخال: <strong class="num">{{ p.average | money }}</strong> (حالياً {{ material()!.unitCost | money }})
+          } @else {
+            FIFO: تبقى تكلفة الصرف التالية <strong class="num">{{ p.fifo | money }}</strong> حتى تنفد الدفعات الأقدم
+          }
+        </div>
+      </div>
+    }
+
+    <div class="actions">
+      @if (error(); as e) {
+        <span class="blocker"><app-icon name="alert" [size]="14" /> {{ e }}</span>
+      }
+      <button type="button" class="btn" (click)="resetForm()">مسح</button>
+      <button type="button" class="btn btn--primary" [disabled]="!!error()" (click)="save()"><app-icon name="check" [size]="16" /> تسجيل الوارد</button>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card__header">
+    <div>
+      <h3 class="card__title"><app-icon name="file" [size]="17" /> الفواتير والواردات</h3>
+      <p class="card__subtitle">تُحفظ الفواتير وإيصالات الإدخال هنا ويمكن استعراضها بطرق مختلفة</p>
+    </div>
+    <div class="row">
+      <div class="segmented">
+        <button type="button" [class.active]="view() === 'invoices'" (click)="view.set('invoices')">حسب المستند</button>
+        <button type="button" [class.active]="view() === 'lines'" (click)="view.set('lines')">حسب السطر</button>
+      </div>
+      <button type="button" class="btn btn--sm btn--ghost" (click)="exportCsv()"><app-icon name="download" [size]="14" /> CSV</button>
+    </div>
+  </div>
+  <div class="filters">
+    <div class="toolbar">
+      <div class="search-box">
+        <app-icon name="search" [size]="16" />
+        <input class="input input--sm" placeholder="رقم الفاتورة أو العنصر" [value]="search()" (input)="search.set($any($event.target).value)" />
+      </div>
+      <select class="select input--sm" (change)="sourceFilter.set($any($event.target).value)">
+        <option value="">كل المصادر</option>
+        @for (s of allSources; track s) {
+          <option [value]="s">{{ sourceLabels[s] }}</option>
+        }
+      </select>
+      <select class="select input--sm" (change)="supplierFilter.set($any($event.target).value)">
+        <option value="">كل الموردين</option>
+        @for (s of suppliers.sorted(); track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+      <label class="date"><span>من</span><input class="input input--sm" type="date" [value]="from()" (change)="from.set($any($event.target).value)" /></label>
+      <label class="date"><span>إلى</span><input class="input input--sm" type="date" [value]="to()" (change)="to.set($any($event.target).value)" /></label>
+    </div>
+  </div>
+  <div class="table-wrap">
+    @if (view() === 'invoices') {
+      <table class="table">
+        <thead><tr><th>المستند</th><th>المصدر</th><th>التاريخ</th><th>المورد</th><th>عدد الأسطر</th><th>الإجمالي</th><th>مرفقات</th></tr></thead>
+        <tbody>
+          @for (g of invoices(); track g.key) {
+            <tr class="clickable" (click)="showInvoice(g)">
+              <td><strong class="ltr">{{ g.documentNo || '—' }}</strong></td>
+              <td><span class="badge">{{ g.source ? sourceLabels[g.source] : '—' }}</span></td>
+              <td class="num">{{ g.date | arDate }}</td>
+              <td>{{ suppliers.find(g.supplierId)?.name ?? '—' }}</td>
+              <td class="num">{{ g.lines.length }}</td>
+              <td class="num"><strong>{{ g.total | money }}</strong></td>
+              <td>@if (g.attachments.length) {<app-icon name="file" [size]="14" /> {{ g.attachments.length }}}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7"><app-empty-state icon="file" title="لا توجد واردات مطابقة" /></td></tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <table class="table">
+        <thead><tr><th>التاريخ</th><th>العنصر</th><th>الكمية</th><th>سعر الوحدة</th><th>المبلغ</th><th>المصدر / المستند</th><th>الموقع</th><th>الصلاحية</th></tr></thead>
+        <tbody>
+          @for (l of lines(); track l.movement.id) {
+            <tr>
+              <td class="num nowrap">{{ l.movement.date | arDate }}</td>
+              <td><a class="title" [routerLink]="['/warehouse/items', l.movement.materialId]"><strong>{{ l.material?.name }}</strong><span class="code">{{ l.material?.code }}</span></a></td>
+              <td class="num pos">+{{ l.movement.quantity | num }}</td>
+              <td class="num">{{ l.movement.unitCost | money }}</td>
+              <td class="num">{{ l.movement.quantity * (l.movement.unitCost ?? 0) | money }}</td>
+              <td>{{ l.movement.source ? sourceLabels[l.movement.source] : '' }} <span class="ltr muted">{{ l.movement.documentNo }}</span></td>
+              <td class="muted">{{ l.place }}</td>
+              <td class="num">{{ l.movement.expiryDate ? (l.movement.expiryDate | arDate) : '—' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8"><app-empty-state icon="file" title="لا توجد واردات مطابقة" /></td></tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</section>
+
+<app-modal [(open)]="invoiceOpen" [title]="(openInvoice()?.source ? sourceLabels[openInvoice()!.source!] : 'مستند') + ' ' + (openInvoice()?.documentNo ?? '')" width="760px">
+  @if (openInvoice(); as g) {
+    <div class="info-grid">
+      <div><span>التاريخ</span><strong class="num">{{ g.date | arDate }}</strong></div>
+      <div><span>المورد</span><strong>{{ suppliers.find(g.supplierId)?.name ?? '—' }}</strong></div>
+      <div><span>الإجمالي</span><strong class="num">{{ g.total | money }}</strong></div>
+    </div>
+    <div class="table-wrap spaced">
+      <table class="table">
+        <thead><tr><th>العنصر</th><th>الكمية</th><th>سعر الوحدة</th><th>المبلغ</th><th>الموقع</th></tr></thead>
+        <tbody>
+          @for (m of g.lines; track m.id) {
+            @let item = inventory.find(m.materialId);
+            <tr>
+              <td><strong>{{ item?.name }}</strong> <span class="code">{{ item?.code }}</span></td>
+              <td class="num">{{ m.quantity | num }} {{ item ? unitLabels[item.unit] : '' }}</td>
+              <td class="num">{{ m.unitCost | money }}</td>
+              <td class="num">{{ m.quantity * (m.unitCost ?? 0) | money }}</td>
+              <td class="muted">{{ warehouses.locationLabel(m.warehouseId, m.shelfId) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (g.attachments.length) {
+      <h4 class="section-title">المرفقات</h4>
+      <app-attachment-list [attachments]="g.attachments" [removable]="false" />
+    }
+  }
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="invoiceOpen.set(false)">إغلاق</button>
+  </ng-container>
+</app-modal>

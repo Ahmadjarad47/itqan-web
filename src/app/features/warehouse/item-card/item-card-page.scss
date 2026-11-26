@@ -1,0 +1,137 @@
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+}
+
+.kpi-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+
+  &:hover app-stat-card {
+    box-shadow: var(--shadow);
+    outline: 1px solid var(--accent);
+  }
+}
+
+.banner {
+  margin-bottom: 16px;
+
+  a {
+    color: var(--primary);
+    font-weight: 600;
+    margin-inline-start: 6px;
+  }
+}
+
+.tabs {
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.two {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+.span-all {
+  grid-column: 1 / -1;
+}
+
+.notes {
+  white-space: pre-wrap;
+  font-weight: 500;
+}
+
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.method {
+  padding: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &.selected {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.explain {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+
+.formula {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  font-size: 14px;
+
+  &.inline {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
+
+.margin {
+  width: 120px;
+}
+
+.spaced {
+  margin-top: 20px;
+}
+
+.pricing-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ledger td {
+  white-space: nowrap;
+}
+
+.blocker {
+  color: var(--warning);
+  font-size: 12.5px;
+  margin-inline-end: auto;
+}
+
+a {
+  color: var(--primary);
+}

@@ -40,7 +40,7 @@ export const ROLES: Role[] = [
     name: 'أمين المستودع',
     description: 'أرصدة المخزون وحركات الاستلام والصرف',
     color: '#a8741a',
-    permissions: ['dashboard.view', 'inventory.view', 'inventory.manage', 'procurement.view'],
+    permissions: ['dashboard.view', 'inventory.view', 'inventory.manage', 'warehouses.manage', 'procurement.view'],
     system: false,
   },
   {

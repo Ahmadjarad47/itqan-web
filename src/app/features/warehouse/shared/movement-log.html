@@ -1,0 +1,131 @@
+<div class="card">
+  <div class="card__header">
+    <h3 class="card__title"><app-icon name="refresh" [size]="17" /> {{ heading() }}</h3>
+    <div class="row no-print">
+      <div class="segmented segmented--sm">
+        <button type="button" [class.active]="view() === 'list'" (click)="view.set('list')" title="قائمة"><app-icon name="list" [size]="14" /></button>
+        <button type="button" [class.active]="view() === 'item'" (click)="view.set('item')">حسب العنصر</button>
+        <button type="button" [class.active]="view() === 'day'" (click)="view.set('day')">حسب اليوم</button>
+        <button type="button" [class.active]="view() === 'type'" (click)="view.set('type')">حسب النوع</button>
+      </div>
+      <button type="button" class="btn btn--sm btn--ghost" (click)="exportCsv()"><app-icon name="download" [size]="14" /> CSV</button>
+    </div>
+  </div>
+
+  <div class="filters no-print">
+    <div class="chips">
+      <button type="button" class="chip" [class.active]="direction() === 'all'" (click)="direction.set('all')">الكل</button>
+      <button type="button" class="chip" [class.active]="direction() === 'in'" (click)="direction.set('in')"><app-icon name="download" [size]="13" /> دخول</button>
+      <button type="button" class="chip" [class.active]="direction() === 'out'" (click)="direction.set('out')"><app-icon name="upload" [size]="13" /> خروج</button>
+      <button type="button" class="chip" [class.active]="direction() === 'transfer'" (click)="direction.set('transfer')"><app-icon name="route" [size]="13" /> مناقلة</button>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <app-icon name="search" [size]="16" />
+        <input class="input input--sm" placeholder="العنصر أو المرجع" [value]="search()" (input)="search.set($any($event.target).value)" />
+      </div>
+      <select class="select input--sm" (change)="type.set($any($event.target).value)">
+        <option value="" [selected]="!type()">كل الأنواع</option>
+        @for (t of types; track t) {
+          <option [value]="t" [selected]="t === type()">{{ movementLabels[t] }}</option>
+        }
+      </select>
+      <label class="date"><span>من</span><input class="input input--sm" type="date" [value]="from()" (change)="from.set($any($event.target).value)" /></label>
+      <label class="date"><span>إلى</span><input class="input input--sm" type="date" [value]="to()" (change)="to.set($any($event.target).value)" /></label>
+      @if (hasFilters()) {
+        <button type="button" class="btn btn--sm btn--ghost" (click)="reset()"><app-icon name="x" [size]="14" /> مسح</button>
+      }
+    </div>
+  </div>
+
+  @if (view() === 'list') {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>العنصر</th>
+            <th>الحركة</th>
+            <th>الكمية</th>
+            <th>الموقع</th>
+            <th>سعر / تكلفة الوحدة</th>
+            <th>المرجع</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track r.movement.id) {
+            <tr>
+              <td class="num nowrap muted">{{ r.date | arDate }}</td>
+              <td>
+                @if (r.material) {
+                  <a class="title link" [routerLink]="['/warehouse/items', r.material.id]">
+                    <strong>{{ r.material.name }}</strong>
+                    <span class="code">{{ r.material.code }}</span>
+                  </a>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <span class="badge" [class.badge--success]="r.movement.quantity > 0 && r.movement.type !== 'transfer'" [class.badge--warning]="r.movement.quantity < 0 && r.movement.type !== 'transfer'" [class.badge--info]="r.movement.type === 'transfer'">
+                  {{ movementLabels[r.movement.type] }}{{ r.movement.type === 'transfer' ? (r.movement.quantity > 0 ? ' (وارد)' : ' (صادر)') : '' }}
+                </span>
+                @if (r.movement.source) {
+                  <div class="subtle">{{ sourceLabels[r.movement.source] }}</div>
+                }
+              </td>
+              <td class="num nowrap" [class.pos]="r.movement.quantity > 0" [class.neg]="r.movement.quantity < 0">
+                {{ r.movement.quantity > 0 ? '+' : '' }}{{ r.movement.quantity | num }} {{ r.material ? unitLabels[r.material.unit] : '' }}
+              </td>
+              <td class="muted">{{ r.location }}</td>
+              <td class="num">{{ r.movement.unitCost | money }}</td>
+              <td class="muted"><span class="ltr">{{ r.movement.documentNo }}</span> {{ r.movement.documentNo && r.movement.reference.includes(r.movement.documentNo) ? '' : r.movement.reference }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7"><app-empty-state icon="refresh" title="لا توجد حركات مطابقة" /></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (filtered().length > limit()) {
+      <div class="more no-print">
+        <button type="button" class="btn btn--sm btn--ghost" (click)="showAll.set(!showAll())">
+          {{ showAll() ? 'عرض آخر ' + limit() + ' حركات فقط' : 'عرض جميع الحركات (' + filtered().length + ')' }}
+        </button>
+      </div>
+    }
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>{{ view() === 'item' ? 'العنصر' : view() === 'day' ? 'اليوم' : 'نوع الحركة' }}</th>
+            <th>عدد الحركات</th>
+            <th>كمية الدخول</th>
+            <th>كمية الخروج</th>
+            <th>القيمة التقريبية</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (g of groups(); track g.key) {
+            <tr>
+              <td>
+                @if (view() === 'day') {
+                  <span class="num">{{ g.label | arDate }}</span>
+                } @else {
+                  <strong>{{ g.label }}</strong>
+                }
+              </td>
+              <td class="num">{{ g.count }}</td>
+              <td class="num pos">{{ g.inQty ? '+' : '' }}{{ g.inQty | num }}</td>
+              <td class="num neg">{{ g.outQty ? '−' : '' }}{{ g.outQty | num }}</td>
+              <td class="num">{{ g.value | money }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5"><app-empty-state icon="refresh" title="لا توجد حركات مطابقة" /></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

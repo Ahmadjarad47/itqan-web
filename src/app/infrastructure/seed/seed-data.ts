@@ -1,5 +1,6 @@
 import {
   BomNode,
+  CatalogOption,
   CustomFieldDefinition,
   Department,
   Employee,
@@ -7,12 +8,13 @@ import {
   Project,
   Program,
   ProjectModel,
-  ProjectVersion,
   PurchaseRequest,
+  Requisition,
   Role,
   RoutingOperation,
   StockMovement,
   Supplier,
+  Warehouse,
   WorkTask,
   Workstation,
 } from '@domain/models';
@@ -24,6 +26,7 @@ import { seedModels, seedPrograms } from './hierarchy.seed';
 import { seedProjects } from './projects.seed';
 import { seedPurchases } from './procurement.seed';
 import { seedTasks } from './tasks.seed';
+import { CATALOG_OPTIONS, seedInventory, seedRequisitions, seedWarehouses } from './warehouse.seed';
 
 export interface SeedData {
   readonly projects: Project[];
@@ -41,7 +44,9 @@ export interface SeedData {
   readonly customFields: CustomFieldDefinition[];
   readonly programs: Program[];
   readonly models: ProjectModel[];
-  readonly versions: ProjectVersion[];
+  readonly warehouses: Warehouse[];
+  readonly catalogOptions: CatalogOption[];
+  readonly requisitions: Requisition[];
 }
 
 let cached: SeedData | null = null;
@@ -55,36 +60,12 @@ export function seedData(): SeedData {
   const purchases = seedPurchases(today, nodes, new Map(projects.map((p) => [p.id, p.productionQuantity])));
 
   const received = purchases.filter(isPurchaseCompleted);
-  const purchasedMaterials: Material[] = received.map((request) => ({
-    id: `m-${request.id}`,
-    code: nodes.find((n) => n.id === request.nodeId)?.code ?? request.number,
-    name: request.title,
-    kind: 'purchased',
-    unit: request.unit,
-    unitCost: request.unitPrice ?? 0,
-    stock: request.quantity,
-    minStock: 0,
-    warehouse: 'مستودع الأجزاء المشتراة',
-  }));
-
-  const materials = [...MATERIALS, ...purchasedMaterials];
-  const movements: StockMovement[] = [
-    ...materials.map((item, index) => ({
-      id: `mv-${index + 1}`,
-      materialId: item.id,
-      type: 'receipt' as const,
-      quantity: item.stock,
-      reference: item.kind === 'purchased' ? 'استلام شراء' : 'رصيد افتتاحي',
-      at: `${today}T07:00:00.000Z`,
-    })),
-  ];
-
-  const operations = seedOperations(today);
-  const nodesWithFields = nodes.map(withSampleFields);
+  const purchasedCodes = new Map(received.map((r) => [r.id, nodes.find((n) => n.id === r.nodeId)?.code ?? r.number]));
+  const { materials, movements } = seedInventory(today, MATERIALS, received, purchasedCodes);
 
   cached = {
     projects,
-    nodes: nodesWithFields,
+    nodes: nodes.map(withSampleFields),
     materials,
     movements,
     suppliers: SUPPLIERS.map((supplier, i) => ({
@@ -93,7 +74,7 @@ export function seedData(): SeedData {
     })),
     purchases,
     workstations: WORKSTATIONS,
-    operations,
+    operations: seedOperations(today),
     departments: DEPARTMENTS,
     employees: EMPLOYEES,
     tasks: seedTasks(today),
@@ -101,8 +82,9 @@ export function seedData(): SeedData {
     customFields: CUSTOM_FIELDS,
     programs: seedPrograms(today),
     models: seedModels(today),
-    // Versions are snapshots of the user's own edits, so none are seeded.
-    versions: [],
+    warehouses: seedWarehouses(today),
+    catalogOptions: CATALOG_OPTIONS,
+    requisitions: seedRequisitions(today),
   };
   return cached;
 }

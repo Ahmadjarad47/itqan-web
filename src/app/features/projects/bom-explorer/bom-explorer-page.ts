@@ -17,9 +17,6 @@ import { NodeActions } from '../shared/node-actions';
 import { ProjectModelsPanel } from '../hierarchy/project-models-panel';
 import { NodeTasksDialog } from '../shared/node-tasks-dialog';
 import { EmployeeStore } from '@application/state/organization.store';
-import { ProjectVersionStore } from '@application/state/project-version.store';
-import { CloneTreeDialog } from '../shared/clone-tree-dialog';
-import { ProjectVersionsDialog } from '../versions/project-versions-dialog';
 
 const CLICK_DELAY_MS = 230;
 
@@ -39,8 +36,6 @@ const CLICK_DELAY_MS = 230;
     NodeActions,
     NodeTasksDialog,
     ProjectModelsPanel,
-    CloneTreeDialog,
-    ProjectVersionsDialog,
     MoneyPipe,
     NumPipe,
   ],
@@ -54,7 +49,6 @@ export class BomExplorerPage {
   protected readonly bom = inject(BomStore);
   protected readonly insights = inject(ProjectInsightsQuery);
   protected readonly employees = inject(EmployeeStore);
-  private readonly versions = inject(ProjectVersionStore);
 
   /** Route param and query param bound through component input binding. */
   readonly projectId = input.required<EntityId>();
@@ -64,8 +58,6 @@ export class BomExplorerPage {
   protected readonly view = signal<'diagram' | 'cards'>('diagram');
   protected readonly adding = signal(false);
   protected readonly filter = signal('');
-  protected readonly cloning = signal(false);
-  protected readonly versionsOpen = signal(false);
   protected readonly tasksOpen = signal(false);
   protected readonly tasksNodeId = signal<EntityId | null>(null);
   private clickTimer: ReturnType<typeof setTimeout> | undefined;
@@ -83,9 +75,6 @@ export class BomExplorerPage {
     const items = this.bom.tree().children(this.currentId());
     return term ? items.filter((n) => n.name.includes(term) || n.code.toLowerCase().includes(term.toLowerCase())) : items;
   });
-
-  protected readonly latestVersion = computed(() => this.versions.latest(this.projectId()));
-  protected readonly versionCount = computed(() => this.versions.forProject(this.projectId()).length);
 
   protected readonly currentCost = computed(() => this.insights.costByNode().get(this.currentId()));
   protected readonly currentProgress = computed(() => this.insights.progressByNode().get(this.currentId()) ?? 0);
