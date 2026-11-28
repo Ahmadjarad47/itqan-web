@@ -39,3 +39,15 @@ describe('LocalStorageRepository: writes issued in the same tick', () => {
     expect(stored().map((r) => r.value)).toEqual([10, 20, 3]);
   });
 });
+
+describe('LocalStorageRepository: stored data that is not a list', () => {
+  beforeEach(() => clearLocalStorageData());
+
+  for (const raw of ['null', '{}', '5']) {
+    it(`falls back to the seed for ${raw}`, async () => {
+      localStorage.setItem(`${STORAGE_NAMESPACE}rows`, raw);
+      const repository = new LocalStorageRepository<Row>('rows', async () => [...rows]);
+      expect(await repository.getAll()).toEqual(rows);
+    });
+  }
+});

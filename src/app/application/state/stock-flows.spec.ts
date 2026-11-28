@@ -120,6 +120,25 @@ describe('warehouse receipt of a purchase', () => {
   });
 });
 
+describe('receiving a supply request from the inbound screen', () => {
+  it('refuses a second receipt after the stage was reopened', () => {
+    const { id, stock } = setup();
+    const purchases = TestBed.inject(PurchaseStore);
+    const warehouse = TestBed.inject(WarehouseUseCase);
+    const created = purchases.create(newPurchase(id));
+    purchases.update(created.id, { qualityResult: 'passed', unitPrice: 5 });
+    purchases.updateStage(created.id, 'qualityControl', { done: true });
+    const input = { materialId: id, ...A, quantity: 5, unitCost: 5, date: '2026-01-02', source: 'supply' as const, documentNo: created.number, purchaseId: created.id };
+
+    warehouse.receive(input);
+    purchases.updateStage(created.id, 'warehouseReceipt', { done: false });
+
+    expect(warehouse.awaitingReceipt()).toHaveLength(0);
+    warehouse.receive(input);
+    expect(stock()).toBe(18);
+  });
+});
+
 describe('document numbers after a delete', () => {
   it('never repeats a purchase number', () => {
     setup();

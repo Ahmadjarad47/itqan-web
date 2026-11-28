@@ -59,14 +59,18 @@ export function operationUnitCost(
  * Bottom-up cost roll-up: every level is computed from the level below it,
  * so a change in any raw material price or operation cost propagates to level 0.
  */
-export function rollUpCost(nodeId: EntityId, context: CostContext): CostLine {
+export function rollUpCost(nodeId: EntityId, context: CostContext, ancestors: ReadonlySet<EntityId> = new Set()): CostLine {
   const { tree, materials } = context;
   const node = tree.node(nodeId);
   if (!node) {
     throw new Error(`Unknown BOM node ${nodeId}`);
   }
 
-  const children = tree.children(nodeId).map((child) => rollUpCost(child.id, context));
+  const branch = new Set(ancestors).add(nodeId);
+  const children = tree
+    .children(nodeId)
+    .filter((child) => !branch.has(child.id))
+    .map((child) => rollUpCost(child.id, context, branch));
   const childrenCost = children.reduce((sum, line) => sum + line.extendedCost, 0);
 
   const assigned = node.materials.reduce(

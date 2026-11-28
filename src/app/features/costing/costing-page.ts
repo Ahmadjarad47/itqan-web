@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthorizationService } from '@application/auth/authorization.service';
 import { ProjectInsightsQuery } from '@application/queries/project-insights.query';
@@ -7,6 +7,7 @@ import { InventoryStore } from '@application/state/inventory.store';
 import { ProjectStore } from '@application/state/project.store';
 import { BomNode, EntityId, UNIT_LABELS } from '@domain/models';
 import { CostLine } from '@domain/rules';
+import { parseNumber } from '@shared/forms/parse-number';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
 import { Icon } from '@shared/ui/icon/icon';
@@ -45,10 +46,17 @@ export class CostingPage {
   protected readonly selected = computed(() => this.projects.find(this.selectedId()));
   protected readonly root = computed(() => this.insights.costByProject().get(this.selectedId()));
 
-  protected readonly expanded = linkedSignal<ReadonlySet<EntityId>>(() => {
-    const root = this.root();
-    if (!root) return new Set();
-    return new Set([root.nodeId, ...root.children.map((child) => child.nodeId)]);
+  private readonly rootNodeId = computed(() => this.root()?.nodeId);
+
+  /** Starts over only for another product tree, not on every price or structure edit. */
+  protected readonly expanded = linkedSignal<EntityId | undefined, ReadonlySet<EntityId>>({
+    source: this.rootNodeId,
+    computation: () =>
+      untracked(() => {
+        const root = this.root();
+        if (!root) return new Set<EntityId>();
+        return new Set([root.nodeId, ...root.children.map((child) => child.nodeId)]);
+      }),
   });
 
   protected readonly rows = computed<CostRow[]>(() => {
@@ -128,11 +136,15 @@ export class CostingPage {
     if (root) this.expanded.set(new Set([root.nodeId]));
   }
 
-  protected setMaterialPrice(id: EntityId, value: number): void {
-    if (value >= 0) this.inventory.update(id, { unitCost: value });
+  protected setMaterialPrice(id: EntityId, raw: string): void {
+    const unitCost = parseNumber(raw);
+    if (unitCost !== null) this.inventory.update(id, { unitCost });
   }
 
-  protected setBuyPrice(id: EntityId, value: number): void {
-    this.bom.update(id, { purchaseUnitPrice: value >= 0 ? value : null });
+  /** An emptied field clears the price; an invalid number keeps the stored one. */
+  protected setBuyPrice(id: EntityId, input: HTMLInputElement): void {
+    const price = parseNumber(input.value);
+    if (price !== null || input.value === '') this.bom.update(id, { purchaseUnitPrice: price });
+    input.value = String(this.bom.find(id)?.purchaseUnitPrice ?? '');
   }
 }

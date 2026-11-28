@@ -32,6 +32,7 @@ import {
   UNIT_LABELS,
 } from '@domain/models';
 import { purchaseProgress, purchaseStatusLabel } from '@domain/rules';
+import { parseNumber } from '@shared/forms/parse-number';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
 import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import { EmptyState } from '@shared/ui/empty-state/empty-state';
@@ -109,7 +110,11 @@ export class ItemDetailPage {
   protected readonly canEdit = computed(() => this.auth.can('bom.edit'));
   protected readonly canDecide = computed(() => this.auth.can('bom.decide'));
   protected readonly customFields = computed(() => this.fieldDefinitions.activeFor('bomNode'));
-  protected readonly node = computed(() => this.bom.find(this.nodeId()));
+  /** Undefined when the component is not part of the project in the route. */
+  protected readonly node = computed(() => {
+    const node = this.bom.find(this.nodeId());
+    return node?.projectId === this.projectId() ? node : undefined;
+  });
   protected readonly missing = computed(() => missingRequiredFields(this.customFields(), this.node()?.customFields));
   protected readonly project = computed(() => this.projects.find(this.projectId()));
   protected readonly path = computed(() => this.bom.tree().path(this.nodeId()));
@@ -144,6 +149,19 @@ export class ItemDetailPage {
 
   protected update(changes: Partial<Omit<BomNode, 'id' | 'projectId' | 'parentId'>>): void {
     this.bom.update(this.nodeId(), changes);
+  }
+
+  protected setQuantity(input: HTMLInputElement): void {
+    const quantity = parseNumber(input.value, { positive: true });
+    if (quantity !== null) this.update({ quantity });
+    input.value = String(this.node()?.quantity ?? '');
+  }
+
+  /** An emptied field clears the price; an invalid number keeps the stored one. */
+  protected setPurchasePrice(input: HTMLInputElement): void {
+    const price = parseNumber(input.value);
+    if (price !== null || input.value === '') this.update({ purchaseUnitPrice: price });
+    input.value = String(this.node()?.purchaseUnitPrice ?? '');
   }
 
   protected setCustomField(change: CustomFieldChange): void {

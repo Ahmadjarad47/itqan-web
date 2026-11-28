@@ -4,7 +4,7 @@ import { SupplierStore } from '@application/state/supplier.store';
 import { PurchaseWorkflowUseCase } from '@application/use-cases/purchase-workflow.use-case';
 import { ToastService } from '@core/feedback/toast.service';
 import { EntityId, PurchaseRequest } from '@domain/models';
-import { evaluateMcdm } from '@domain/rules';
+import { evaluateMcdm, isMcdmWinner } from '@domain/rules';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
 import { Icon } from '@shared/ui/icon/icon';
 
@@ -25,6 +25,8 @@ export class McdmPanel {
   readonly request = input.required<PurchaseRequest>();
 
   protected readonly totalWeight = computed(() => this.request().mcdm.criteria.reduce((sum, c) => sum + c.weight, 0));
+  protected readonly isWinner = isMcdmWinner;
+
   protected readonly results = computed(() => {
     const scores = evaluateMcdm(this.request().mcdm, this.request().quotes);
     return new Map(scores.map((s) => [s.quoteId, s]));

@@ -25,6 +25,11 @@ export function evaluateMcdm(matrix: McdmMatrix, quotes: readonly SupplierQuote[
     );
     return { quoteId: quote.id, score: (weighted / totalWeight) * 100 };
   });
-  const ordered = [...scored].sort((a, b) => b.score - a.score);
-  return scored.map((item) => ({ ...item, rank: ordered.findIndex((o) => o.quoteId === item.quoteId) + 1 }));
+  // Competition ranking (1, 1, 3); the tolerance absorbs floating-point noise in equal totals.
+  return scored.map((item) => ({ ...item, rank: scored.filter((other) => other.score - item.score > 1e-9).length + 1 }));
+}
+
+export function isMcdmWinner(result: McdmScore | undefined): boolean {
+  // Unscored quotations all tie at zero; a tie at zero is not a decision.
+  return result?.rank === 1 && result.score > 0;
 }

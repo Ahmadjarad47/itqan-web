@@ -3,6 +3,8 @@ import { CatalogList, CatalogOption, EntityId, Requisition, RequisitionLine, Req
 import { CatalogOptionRepository, RequisitionRepository, WarehouseRepository } from '@domain/ports/repositories';
 import { nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
+import { InventoryStore } from './inventory.store';
+import { PurchaseStore } from './purchase.store';
 
 export interface WarehouseTreeRow {
   readonly warehouse: Warehouse;
@@ -12,6 +14,8 @@ export interface WarehouseTreeRow {
 @Injectable({ providedIn: 'root' })
 export class WarehouseStore extends EntityStore<Warehouse> {
   protected readonly repository = inject(WarehouseRepository);
+  private readonly inventory = inject(InventoryStore);
+  private readonly purchases = inject(PurchaseStore);
 
   readonly sorted = computed(() => [...this.all()].sort((a, b) => a.code.localeCompare(b.code)));
 
@@ -122,6 +126,8 @@ export class WarehouseStore extends EntityStore<Warehouse> {
     const parentId = this.find(id)?.parentId ?? null;
     this.children(id).forEach((child) => this.modify(child.id, { parentId }));
     this.removeWhere((w) => w.id === id);
+    this.inventory.removeEmptyLocationsIn(id);
+    this.purchases.clearWarehouse(id);
   }
 }
 

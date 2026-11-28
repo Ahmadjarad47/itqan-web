@@ -20,10 +20,12 @@ export interface ProgressContext {
  */
 export function rollUpProgress(rootId: EntityId, context: ProgressContext): Map<EntityId, number> {
   const result = new Map<EntityId, number>();
+  const visited = new Set<EntityId>();
 
   const visit = (nodeId: EntityId): number => {
     const node = context.tree.node(nodeId);
     if (!node) return 0;
+    visited.add(nodeId);
 
     if (node.decision === 'buy') {
       const value = context.purchaseProgressByNode.get(nodeId) ?? 0;
@@ -31,7 +33,10 @@ export function rollUpProgress(rootId: EntityId, context: ProgressContext): Map<
       return value;
     }
 
-    const parts = context.tree.children(nodeId).map((child) => visit(child.id));
+    const parts = context.tree
+      .children(nodeId)
+      .filter((child) => !visited.has(child.id))
+      .map((child) => visit(child.id));
     const operations = context.operationsByNode.get(nodeId) ?? [];
     if (operations.length) {
       const lotSize = context.productionQuantity * context.tree.quantityPerEndProduct(nodeId);

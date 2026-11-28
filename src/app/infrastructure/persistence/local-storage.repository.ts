@@ -88,8 +88,9 @@ export class LocalStorageRepository<T extends Entity> implements Repository<T> {
     if (this.cache) return this.cache;
     try {
       const raw = localStorage.getItem(this.key);
-      if (raw) {
-        this.cache = JSON.parse(raw) as T[];
+      const stored: unknown = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(stored)) {
+        this.cache = stored as T[];
         return this.cache;
       }
     } catch {

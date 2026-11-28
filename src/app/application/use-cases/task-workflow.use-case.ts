@@ -21,6 +21,7 @@ export class TaskWorkflowUseCase {
   }
 
   logProgress(taskId: EntityId, completedQuantity: number, qualityOk: boolean, note: string): void {
+    if (this.tasks.find(taskId)?.status !== 'active') return;
     const task = this.tasks.addProgress(taskId, { completedQuantity, qualityOk, note });
     if (!task) return;
     const op = this.routing.find(task.operationId);

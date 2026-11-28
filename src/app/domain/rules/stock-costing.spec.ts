@@ -61,6 +61,11 @@ describe('stock costing (SRS examples)', () => {
     expect(stockLevel(50, 10, 100)).toBe('ok');
   });
 
+  it('never returns an existing code for lowercase prefix parts', () => {
+    expect(generateItemCode(['raw', 'mec'], ['RAW-MEC-0001'])).toBe('raw-mec-0002');
+    expect(generateItemCode(['raw'], ['raw-0001'])).toBe('raw-0002');
+  });
+
   it('generates unique codes and detects similar names', () => {
     expect(generateItemCode(['RAW', 'MEC'], ['RAW-MEC-0001'])).toBe('RAW-MEC-0002');
     expect(textSimilarity('صاج فولاذي 3 مم', 'صاج فولاذي ST37 سماكة 3 مم')).toBeGreaterThan(0.6);

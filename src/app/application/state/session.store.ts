@@ -35,7 +35,9 @@ export class SessionStore {
   /** Falls back to the first active user when the stored one no longer exists or was disabled. */
   readonly user = computed(() => {
     const requested = this.employees.find(this.requestedUserId());
-    return requested?.active ? requested : (this.employees.find(DEFAULT_USER_ID) ?? this.employees.activeUsers()[0]);
+    if (requested?.active) return requested;
+    const fallback = this.employees.find(DEFAULT_USER_ID);
+    return fallback?.active ? fallback : this.employees.activeUsers()[0];
   });
   readonly userId = computed(() => this.user()?.id ?? '');
   readonly displayName = computed(() => this.user()?.name ?? '—');

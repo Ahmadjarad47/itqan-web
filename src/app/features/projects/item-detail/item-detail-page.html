@@ -86,7 +86,7 @@
               step="any"
               [value]="item.quantity"
               [disabled]="!item.parentId"
-              (change)="update({ quantity: +$any($event.target).value || 1 })"
+              (change)="setQuantity($any($event.target))"
             />
           </label>
           <label class="field">
@@ -266,7 +266,7 @@
                     min="0"
                     step="any"
                     [value]="item.purchaseUnitPrice ?? ''"
-                    (change)="update({ purchaseUnitPrice: +$any($event.target).value || null })"
+                    (change)="setPurchasePrice($any($event.target))"
                   />
                   <span class="field__hint">يدخل في حساب التكلفة التراكمية ويُحدَّث تلقائياً عند الاستلام</span>
                 </label>

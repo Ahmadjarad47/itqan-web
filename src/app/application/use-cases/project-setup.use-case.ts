@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { BomNode, Discipline, EntityId, IsoDate, Project } from '@domain/models';
+import { BomNode, Discipline, EntityId, IsoDate, Project, PurchaseRequest } from '@domain/models';
 import { todayIso } from '@domain/rules';
 import { newId } from '../state/entity-store';
 import { BomStore } from '../state/bom.store';
@@ -63,12 +63,7 @@ export class ProjectSetupUseCase {
     this.tasks.removeForNodes(removed);
     for (const id of removed) {
       const request = this.purchases.byNode().get(id);
-      if (!request) continue;
-      if (request.stages.some((s) => s.done)) {
-        this.purchases.update(request.id, { nodeId: null, projectId: null });
-      } else {
-        this.purchases.remove(request.id);
-      }
+      if (request) this.releasePurchase(request);
     }
   }
 
@@ -76,7 +71,24 @@ export class ProjectSetupUseCase {
     const project = this.projects.find(projectId);
     const root = this.bom.find(project?.rootNodeId);
     if (root) this.removeComponent(root);
+    // Components outside the root subtree, then requests of the project not reached through a component.
+    for (const node of this.bom.all().filter((n) => n.projectId === projectId)) {
+      if (this.bom.find(node.id)) this.removeComponent(node);
+    }
+    this.purchases
+      .all()
+      .filter((r) => r.projectId === projectId)
+      .forEach((r) => this.releasePurchase(r));
     this.models.removeProject(projectId);
     this.projects.remove(projectId);
+  }
+
+  /** Started requests stay in procurement, detached; unstarted ones are deleted. */
+  private releasePurchase(request: PurchaseRequest): void {
+    if (request.stages.some((s) => s.done)) {
+      this.purchases.update(request.id, { nodeId: null, projectId: null });
+    } else {
+      this.purchases.remove(request.id);
+    }
   }
 }

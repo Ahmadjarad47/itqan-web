@@ -25,19 +25,29 @@ export class WarehouseUseCase {
   awaitingReceipt() {
     return this.purchases
       .sorted()
-      .filter((r) => r.qualityResult === 'passed' && isStageDone(r, 'qualityControl') && !isStageDone(r, 'warehouseReceipt'));
+      .filter(
+        (r) =>
+          r.qualityResult === 'passed' &&
+          isStageDone(r, 'qualityControl') &&
+          !isStageDone(r, 'warehouseReceipt') &&
+          !this.inventory.hasReceiptFor(r.id),
+      );
   }
 
   /**
    * Records an incoming quantity. When it comes from a supply request, that request's
    * final stage («الاستلام في المستودع») is closed at the same time.
    */
-  receive(input: ReceiptInput): void {
+  receive(input: ReceiptInput): Guard {
+    if (input.purchaseId && this.inventory.hasReceiptFor(input.purchaseId)) {
+      return { allowed: false, reason: 'استُلم طلب التوريد هذا من قبل' };
+    }
     this.inventory.receive(input);
     const request = this.purchases.find(input.purchaseId);
     if (request && !isStageDone(request, 'warehouseReceipt')) {
       this.purchases.updateStage(request.id, 'warehouseReceipt', { done: true, date: input.date });
     }
+    return { allowed: true };
   }
 
   /** Issues the prepared lines of a requisition and closes it. */

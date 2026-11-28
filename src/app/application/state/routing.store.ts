@@ -3,6 +3,7 @@ import { EntityId, RoutingOperation, Workstation } from '@domain/models';
 import { OperationRepository, WorkstationRepository } from '@domain/ports/repositories';
 import { addDays, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
+import { TaskStore } from './task.store';
 
 @Injectable({ providedIn: 'root' })
 export class WorkstationStore extends EntityStore<Workstation> {
@@ -14,6 +15,7 @@ export class WorkstationStore extends EntityStore<Workstation> {
 @Injectable({ providedIn: 'root' })
 export class RoutingStore extends EntityStore<RoutingOperation> {
   protected readonly repository = inject(OperationRepository);
+  private readonly tasks = inject(TaskStore);
 
   protected override normalize(op: RoutingOperation): RoutingOperation {
     return { ...op, departmentId: op.departmentId ?? null, companyHourlyRate: op.companyHourlyRate ?? 0 };
@@ -80,6 +82,7 @@ export class RoutingStore extends EntityStore<RoutingOperation> {
 
   remove(id: EntityId): void {
     this.removeWhere((op) => op.id === id);
+    this.tasks.unlinkOperation(id);
   }
 
   removeForNodes(nodeIds: readonly EntityId[]): void {

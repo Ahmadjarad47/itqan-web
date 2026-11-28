@@ -206,7 +206,7 @@ export class InboundPanel {
       // A project purchase received here is linked to the chosen card.
       this.purchases.update(request.id, { materialId: m.id });
     }
-    this.flows.receive({
+    const result = this.flows.receive({
       materialId: m.id,
       warehouseId: this.warehouseId()!,
       shelfId: this.shelfId(),
@@ -221,6 +221,10 @@ export class InboundPanel {
       expiryDate: this.expiryDate() || null,
       attachments: this.attachments(),
     });
+    if (!result.allowed) {
+      this.toast.warning('لم يتم تسجيل الوارد', result.reason);
+      return;
+    }
     this.toast.success('تم تسجيل الوارد وتحديث السعر', `${this.quantity()} ${UNIT_LABELS[m.unit]} — ${m.name}`);
     this.resetForm();
   }

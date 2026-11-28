@@ -64,7 +64,11 @@ export class BomExplorerPage {
 
   protected readonly project = computed(() => this.projects.find(this.projectId()));
   protected readonly currentId = computed(() => this.node() ?? this.project()?.rootNodeId ?? '');
-  protected readonly current = computed(() => this.bom.find(this.currentId()));
+  /** Undefined when `?node=` points outside the project in the route. */
+  protected readonly current = computed(() => {
+    const node = this.bom.find(this.currentId());
+    return node?.projectId === this.projectId() ? node : undefined;
+  });
   protected readonly path = computed(() => this.bom.tree().path(this.currentId()));
   protected readonly level = computed(() => Math.max(0, this.path().length - 1));
   protected readonly levelTitle = computed(() => levelTitle(this.level()));

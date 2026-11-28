@@ -220,9 +220,9 @@ export function suggestedSupply(material: Material): number {
 export function generateItemCode(prefixParts: readonly string[], existingCodes: readonly string[]): string {
   const prefix = prefixParts.filter(Boolean).join('-') || 'ITM';
   const taken = new Set(existingCodes.map((c) => c.toUpperCase()));
-  let sequence = existingCodes.filter((c) => c.toUpperCase().startsWith(prefix + '-')).length + 1;
+  let sequence = existingCodes.filter((c) => c.toUpperCase().startsWith(prefix.toUpperCase() + '-')).length + 1;
   let code = `${prefix}-${String(sequence).padStart(4, '0')}`;
-  while (taken.has(code)) code = `${prefix}-${String(++sequence).padStart(4, '0')}`;
+  while (taken.has(code.toUpperCase())) code = `${prefix}-${String(++sequence).padStart(4, '0')}`;
   return code;
 }
 

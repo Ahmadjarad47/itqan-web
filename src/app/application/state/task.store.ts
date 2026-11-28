@@ -87,6 +87,8 @@ export class TaskStore extends EntityStore<WorkTask> {
 
   /** Manager re-sends a returned task, optionally to another department/person. */
   reassign(id: EntityId, departmentId: EntityId, assigneeId: EntityId): void {
+    const task = this.find(id);
+    if (!task || !canTransition(task.status, 'sent')) return;
     this.modify(id, { departmentId, assigneeId, rejectReason: null, rejectNote: '' });
     this.transition(id, 'sent', 'إعادة إسناد');
   }
@@ -120,6 +122,20 @@ export class TaskStore extends EntityStore<WorkTask> {
 
   setArchived(id: EntityId, archived: boolean): void {
     this.modify(id, { archived });
+  }
+
+  /** Keeps the task and its history, without pointing at a deleted purchase request. */
+  unlinkPurchase(purchaseId: EntityId): void {
+    this.all()
+      .filter((task) => task.purchaseId === purchaseId)
+      .forEach((task) => this.modify(task.id, { purchaseId: null }));
+  }
+
+  /** Same for a deleted routing operation. */
+  unlinkOperation(operationId: EntityId): void {
+    this.all()
+      .filter((task) => task.operationId === operationId)
+      .forEach((task) => this.modify(task.id, { operationId: null }));
   }
 
   removeForNodes(nodeIds: readonly EntityId[]): void {

@@ -2,13 +2,24 @@ import { Provider } from '@angular/core';
 import { Entity } from '@domain/models';
 import {
   BomNodeRepository,
+  CatalogOptionRepository,
+  CustomFieldRepository,
+  DepartmentRepository,
+  EmployeeRepository,
   MaterialRepository,
+  OperationRepository,
+  ProgramRepository,
   ProjectModelRepository,
+  ProjectRepository,
   PurchaseRepository,
   Repository,
   RequisitionRepository,
+  RoleRepository,
   StockMovementRepository,
+  SupplierRepository,
   TaskRepository,
+  WarehouseRepository,
+  WorkstationRepository,
 } from '@domain/ports/repositories';
 
 class InMemoryRepository<T extends Entity> implements Repository<T> {
@@ -24,11 +35,22 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
 export function inMemoryRepositories(): Provider[] {
   return [
     BomNodeRepository,
+    CatalogOptionRepository,
+    CustomFieldRepository,
+    DepartmentRepository,
+    EmployeeRepository,
     MaterialRepository,
+    OperationRepository,
+    ProgramRepository,
     ProjectModelRepository,
+    ProjectRepository,
     PurchaseRepository,
     RequisitionRepository,
+    RoleRepository,
     StockMovementRepository,
+    SupplierRepository,
     TaskRepository,
+    WarehouseRepository,
+    WorkstationRepository,
   ].map((provide) => ({ provide, useFactory: () => new InMemoryRepository() }));
 }

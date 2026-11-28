@@ -166,6 +166,11 @@ export class InventoryStore extends EntityStore<Material> {
     return this.all().find((m) => m.code.toUpperCase() === wanted);
   }
 
+  /** A supply request is received once: reopening its stage does not take the stock back. */
+  hasReceiptFor(purchaseId: EntityId): boolean {
+    return this.movementState().some((m) => m.type === 'receipt' && m.purchaseId === purchaseId);
+  }
+
   ledger(id: EntityId | null | undefined): Ledger | undefined {
     return id ? this.ledgers().get(id) : undefined;
   }
@@ -224,6 +229,14 @@ export class InventoryStore extends EntityStore<Material> {
       ...m,
       locations: m.locations.filter((l) => !(l.warehouseId === warehouseId && l.shelfId === shelfId && l.quantity === 0)),
     }));
+  }
+
+  /** Drops the empty storage places of a deleted warehouse, so nothing is received into it again. */
+  removeEmptyLocationsIn(warehouseId: EntityId): void {
+    const isDead = (l: StockLocation) => l.warehouseId === warehouseId && l.quantity === 0;
+    this.all()
+      .filter((m) => m.locations.some(isDead))
+      .forEach((m) => this.modify(m.id, { locations: m.locations.filter((l) => !isDead(l)) }));
   }
 
   /** Incoming quantity (تسجيل الوارد); refreshes the unit cost with the item's method. */

@@ -75,8 +75,8 @@
                       type="number"
                       min="0"
                       step="any"
-                      [value]="row.node.purchaseUnitPrice ?? 0"
-                      (change)="setBuyPrice(row.node.id, +$any($event.target).value)"
+                      [value]="row.node.purchaseUnitPrice ?? ''"
+                      (change)="setBuyPrice(row.node.id, $any($event.target))"
                     />
                   } @else {
                     {{ row.line.ownMaterial | money }}
@@ -127,7 +127,7 @@
                 <strong>{{ m.name }}</strong>
                 <small class="ltr">{{ m.code }} · / {{ unitLabels[m.unit] }}</small>
               </span>
-              <input class="input input--sm price" [disabled]="!canSimulate()" type="number" min="0" step="0.05" [value]="m.unitCost" (input)="setMaterialPrice(m.id, +$any($event.target).value)" />
+              <input class="input input--sm price" [disabled]="!canSimulate()" type="number" min="0" step="0.05" [value]="m.unitCost" (input)="setMaterialPrice(m.id, $any($event.target).value)" (blur)="$any($event.target).value = m.unitCost" />
             </label>
           } @empty {
             <p class="subtle">لا توجد مواد خام معيّنة لمكونات هذا المشروع.</p>

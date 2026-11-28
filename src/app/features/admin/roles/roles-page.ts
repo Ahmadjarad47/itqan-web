@@ -31,7 +31,11 @@ export class RolesPage {
   protected readonly adminRoleId = ADMIN_ROLE_ID;
 
   protected readonly view = signal<'editor' | 'matrix'>('editor');
-  protected readonly selectedId = linkedSignal<EntityId>(() => this.roles.sorted()[0]?.id ?? '');
+  /** Keeps the user's choice across role edits; falls back to the first role only when it is gone. */
+  protected readonly selectedId = linkedSignal<readonly Role[], EntityId>({
+    source: () => this.roles.sorted(),
+    computation: (roles, previous) => (previous && roles.some((r) => r.id === previous.value) ? previous.value : (roles[0]?.id ?? '')),
+  });
   protected readonly selected = computed(() => this.roles.find(this.selectedId()));
   protected readonly locked = computed(() => this.selectedId() === ADMIN_ROLE_ID);
   protected readonly members = computed(() => this.employees.withRole(this.selectedId()));

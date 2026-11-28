@@ -13,7 +13,7 @@
 <div class="form-grid">
   <label class="field">
     <span class="field__label">تسلسل العملية (Op. Seq)</span>
-    <input class="input" type="number" min="1" [value]="op.sequence" (change)="setNumber('sequence', +$any($event.target).value)" />
+    <input class="input" type="number" min="1" [value]="op.sequence" (change)="setNumber('sequence', $any($event.target))" />
   </label>
   <label class="field span-2">
     <span class="field__label">اسم العملية</span>
@@ -45,7 +45,7 @@
     </label>
     <label class="field">
       <span class="field__label">تكلفة التنفيذ الخارجي / وحدة ($)</span>
-      <input class="input" type="number" min="0" step="any" [value]="op.externalUnitCost" (change)="setNumber('externalUnitCost', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" step="any" [value]="op.externalUnitCost" (change)="setNumber('externalUnitCost', $any($event.target))" />
     </label>
   } @else if (op.location === 'company') {
     <label class="field span-2">
@@ -59,7 +59,7 @@
     </label>
     <label class="field">
       <span class="field__label">تكلفة ساعة العمل ($)</span>
-      <input class="input" type="number" min="0" step="any" [value]="op.companyHourlyRate" (change)="setNumber('companyHourlyRate', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" step="any" [value]="op.companyHourlyRate" (change)="setNumber('companyHourlyRate', $any($event.target))" />
     </label>
   } @else {
     <label class="field span-full">
@@ -124,21 +124,21 @@
   } @else {
     <label class="field">
       <span class="field__label">ساعات العمل المخططة</span>
-      <input class="input" type="number" min="0" step="any" [value]="op.plannedHours" (change)="setNumber('plannedHours', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" step="any" [value]="op.plannedHours" (change)="setNumber('plannedHours', $any($event.target))" />
     </label>
     <label class="field">
       <span class="field__label">ساعات العمل الفعلية</span>
-      <input class="input" type="number" min="0" step="any" [value]="op.actualHours" (change)="setNumber('actualHours', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" step="any" [value]="op.actualHours" (change)="setNumber('actualHours', $any($event.target))" />
     </label>
   }
   @if (op.location === 'internal') {
     <label class="field">
       <span class="field__label">وقت الإعداد (دقيقة)</span>
-      <input class="input" type="number" min="0" [value]="op.setupMinutes" (change)="setNumber('setupMinutes', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" [value]="op.setupMinutes" (change)="setNumber('setupMinutes', $any($event.target))" />
     </label>
     <label class="field">
       <span class="field__label">وقت معالجة القطعة (دقيقة)</span>
-      <input class="input" type="number" min="0" step="any" [value]="op.runMinutesPerUnit" (change)="setNumber('runMinutesPerUnit', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" step="any" [value]="op.runMinutesPerUnit" (change)="setNumber('runMinutesPerUnit', $any($event.target))" />
     </label>
   }
 </div>
@@ -212,7 +212,7 @@
   } @else {
     <label class="field span-2">
       <span class="field__label">الكمية المكتملة من أصل {{ lot() | num }}</span>
-      <input class="input" type="number" min="0" [max]="lot()" [value]="op.completedQuantity" (change)="setNumber('completedQuantity', +$any($event.target).value)" />
+      <input class="input" type="number" min="0" [max]="lot()" [value]="op.completedQuantity" (change)="setNumber('completedQuantity', $any($event.target))" />
     </label>
   }
 </div>

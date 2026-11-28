@@ -52,7 +52,11 @@ export class BomDiagram {
   protected readonly depthPresets = computed(() => Array.from({ length: Math.max(0, this.maxDepth()) }, (_, i) => i + 1));
   protected readonly dragging = signal(false);
 
-  protected readonly expanded = linkedSignal<ReadonlySet<EntityId>>(() => this.idsToDepth(this.rootId(), DEFAULT_DEPTH));
+  /** Starts over only for another root; editing the tree keeps what the user opened. */
+  protected readonly expanded = linkedSignal<EntityId, ReadonlySet<EntityId>>({
+    source: () => this.rootId(),
+    computation: (rootId) => untracked(() => this.idsToDepth(rootId, DEFAULT_DEPTH)),
+  });
 
   private drag: { x: number; y: number; left: number; top: number } | null = null;
 

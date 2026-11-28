@@ -19,6 +19,7 @@ import {
 } from '@domain/models';
 import { diffDays, operationUnitCost } from '@domain/rules';
 import { DepartmentStore } from '@application/state/organization.store';
+import { NumberRules, parseNumber } from '@shared/forms/parse-number';
 import { MoneyPipe, NumPipe } from '@shared/pipes/format.pipes';
 import { CustomFieldChange, CustomFieldsForm } from '@shared/ui/custom-fields/custom-fields-form';
 import { Icon } from '@shared/ui/icon/icon';
@@ -94,8 +95,12 @@ export class OperationForm {
     this.routing.update(this.operation().id, changes);
   }
 
-  protected setNumber(field: 'sequence' | 'plannedHours' | 'actualHours' | 'setupMinutes' | 'runMinutesPerUnit' | 'externalUnitCost' | 'companyHourlyRate' | 'completedQuantity', value: number): void {
-    this.update({ [field]: Math.max(0, value || 0) });
+  /** Invalid input keeps the stored value; the field always shows what was saved. */
+  protected setNumber(field: 'sequence' | 'plannedHours' | 'actualHours' | 'setupMinutes' | 'runMinutesPerUnit' | 'externalUnitCost' | 'companyHourlyRate' | 'completedQuantity', input: HTMLInputElement): void {
+    const rules: NumberRules = field === 'sequence' ? { min: 1, integer: true } : field === 'completedQuantity' ? { max: this.lot() } : {};
+    const value = parseNumber(input.value, rules);
+    if (value !== null) this.update({ [field]: value });
+    input.value = String(this.routing.find(this.operation().id)?.[field] ?? '');
   }
 
   protected setLocation(location: OperationLocation): void {

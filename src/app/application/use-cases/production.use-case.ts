@@ -46,10 +46,11 @@ export class ProductionUseCase {
   rejectQuality(operationId: EntityId, reworkSequence: number, note: string): void {
     const op = this.routing.find(operationId);
     if (!op) return;
-    this.routing.update(operationId, { qcStatus: 'rejected', qcNote: note, reworkSequence, completed: false });
+    this.routing.update(operationId, { qcStatus: 'rejected', qcNote: note, reworkSequence, completed: false, actualFinish: null });
     for (const other of this.routing.forNode(op.nodeId)) {
       if (other.sequence >= reworkSequence && other.id !== operationId) {
-        this.routing.update(other.id, { completed: false, progressPercent: Math.min(other.progressPercent, 50) });
+        const progressPercent = Math.min(other.progressPercent, 50);
+        this.routing.update(other.id, { completed: false, actualFinish: null, progressPercent });
       }
     }
   }

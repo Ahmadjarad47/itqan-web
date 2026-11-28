@@ -96,6 +96,71 @@ describe('BomTree', () => {
   });
 });
 
+describe('parent cycles in bad data', () => {
+  /** Throws after too many parent look-ups, so an endless walk fails instead of hanging the runner. */
+  const bounded = (id: string, parentId: string): BomNode => {
+    let reads = 0;
+    return Object.defineProperty(node(id, parentId), 'parentId', {
+      get: () => {
+        if (++reads > 1000) throw new Error('unbounded parent walk');
+        return parentId;
+      },
+    });
+  };
+  const selfParent = () => new BomTree([bounded('a', 'a')]);
+  const loop = () => new BomTree([bounded('a', 'b'), bounded('b', 'a')]);
+  const ids = (nodes: BomNode[]) => nodes.map((n) => n.id);
+
+  it('ends the path at the first repeated node', () => {
+    expect(ids(selfParent().path('a'))).toEqual(['a']);
+    expect(ids(loop().path('a'))).toEqual(['b', 'a']);
+  });
+
+  it('lists every descendant once, never the start node', () => {
+    expect(ids(selfParent().descendants('a'))).toEqual([]);
+    expect(ids(loop().descendants('a'))).toEqual(['b']);
+  });
+
+  it('computes a finite depth', () => {
+    expect(selfParent().depth('a')).toBe(0);
+    expect(loop().depth('a')).toBe(1);
+  });
+
+  const costContext = (tree: BomTree) => ({
+    tree,
+    operationsByNode: new Map(),
+    materials: new Map(),
+    workstations: new Map(),
+    productionQuantity: 1,
+  });
+
+  it('rolls up the cost of a self-parented node once', () => {
+    expect(rollUpCost('a', costContext(selfParent())).children).toEqual([]);
+  });
+
+  it('rolls up the cost of a two-node loop once per node', () => {
+    const line = rollUpCost('a', costContext(loop()));
+    expect(line.children.map((c) => c.nodeId)).toEqual(['b']);
+    expect(line.children[0].children).toEqual([]);
+  });
+
+  const progressOf = (tree: BomTree) =>
+    rollUpProgress('a', {
+      tree,
+      operationsByNode: new Map([['a', [op('a', { progressPercent: 50 })]]]),
+      purchaseProgressByNode: new Map(),
+      productionQuantity: 1,
+    });
+
+  it('rolls up the progress of a self-parented node once', () => {
+    expect(progressOf(selfParent()).get('a')).toBe(50);
+  });
+
+  it('rolls up the progress of a two-node loop once per node', () => {
+    expect([...progressOf(loop()).keys()].sort()).toEqual(['a', 'b']);
+  });
+});
+
 describe('rollUpCost', () => {
   const nodes = [
     node('root', null),
@@ -245,6 +310,25 @@ describe('evaluateMcdm', () => {
     );
     expect(result.find((r) => r.quoteId === 'q1')).toEqual({ quoteId: 'q1', score: 70, rank: 1 });
     expect(result.find((r) => r.quoteId === 'q2')?.rank).toBe(2);
+  });
+});
+
+describe('evaluateMcdm ties', () => {
+  const quotes = ['q1', 'q2', 'q3'].map((id) => ({ ...QUOTE, id, supplierId: id }));
+
+  it('gives equal totals the same rank and skips the following one', () => {
+    const result = evaluateMcdm(
+      { criteria: [{ id: 'price', name: 'price', weight: 100 }], scores: { q1: { price: 8 }, q2: { price: 8 }, q3: { price: 5 } } },
+      quotes,
+    );
+    expect(result.map((r) => r.rank)).toEqual([1, 1, 3]);
+  });
+
+  it('treats totals that differ only by float rounding as equal', () => {
+    // q1 sums to 0.1 + 0.2 = 0.30000000000000004, q2 to 0.3.
+    const criteria = [0.1, 0.2, 0.3].map((weight, i) => ({ id: 'c' + i, name: 'c' + i, weight }));
+    const result = evaluateMcdm({ criteria, scores: { q1: { c0: 10, c1: 10 }, q2: { c2: 10 } } }, quotes);
+    expect(result.map((r) => r.rank)).toEqual([1, 1, 3]);
   });
 });
 

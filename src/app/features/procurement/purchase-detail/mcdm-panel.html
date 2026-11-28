@@ -22,10 +22,10 @@
       <tbody>
         @for (quote of request().quotes; track quote.id) {
           @let result = results().get(quote.id);
-          <tr [class.winner]="result?.rank === 1" [class.selected]="quote.supplierId === request().supplierId">
+          <tr [class.winner]="isWinner(result)" [class.selected]="quote.supplierId === request().supplierId">
             <td>
               <div class="supplier">
-                @if (result?.rank === 1) {
+                @if (isWinner(result)) {
                   <span class="crown"><app-icon name="star" [size]="13" /></span>
                 }
                 <span>

@@ -38,8 +38,10 @@ export class BomTree {
   /** Nodes from the root down to (and including) the given node. */
   path(id: EntityId): BomNode[] {
     const path: BomNode[] = [];
+    const seen = new Set<EntityId>();
     let current = this.byId.get(id);
-    while (current) {
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
       path.unshift(current);
       current = current.parentId ? this.byId.get(current.parentId) : undefined;
     }
@@ -53,8 +55,11 @@ export class BomTree {
   /** All nodes below the given node, depth first. */
   descendants(id: EntityId): BomNode[] {
     const result: BomNode[] = [];
+    const seen = new Set<EntityId>([id]);
     const visit = (parentId: EntityId) => {
       for (const child of this.children(parentId)) {
+        if (seen.has(child.id)) continue;
+        seen.add(child.id);
         result.push(child);
         visit(child.id);
       }

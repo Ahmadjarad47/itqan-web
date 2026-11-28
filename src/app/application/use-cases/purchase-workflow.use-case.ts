@@ -45,7 +45,7 @@ export class PurchaseWorkflowUseCase {
   /** Receiving a quality-approved part opens (or increases) its inventory record. */
   private receiveIntoWarehouse(requestId: EntityId): void {
     // Reopening the stage does not reverse the stock, so closing it again must not add it twice.
-    if (this.inventory.movements().some((m) => m.type === 'receipt' && m.purchaseId === requestId)) return;
+    if (this.inventory.hasReceiptFor(requestId)) return;
     const request = this.purchases.find(requestId)!;
     // Supply requests of a product card are received into that card and its destination warehouse.
     const linked = this.inventory.find(request.materialId);

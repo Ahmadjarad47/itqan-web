@@ -143,10 +143,18 @@ export class OutboundPanel {
   protected readonly issueError = computed<string | null>(() => {
     const lines = this.issueLines();
     if (!lines.some((l) => l.quantity > 0)) return 'أدخل كمية لعنصر واحد على الأقل';
+    // A requisition may list an item twice, so lines of one location are also checked together.
+    const claimed = new Map<string, number>();
     for (const l of lines) {
       if (l.quantity <= 0) continue;
       if (!l.warehouseId) return 'حدد موقع الصرف لكل عنصر';
-      if (l.quantity > this.available(l.materialId, l.warehouseId, l.shelfId)) return 'الكمية أكبر من المتوفر في الموقع المحدد';
+      if (l.sellPrice !== null && l.sellPrice < 0) return 'سعر البيع لا يمكن أن يكون سالباً';
+      const available = this.available(l.materialId, l.warehouseId, l.shelfId);
+      if (l.quantity > available) return 'الكمية أكبر من المتوفر في الموقع المحدد';
+      const key = `${l.materialId}|${l.warehouseId}|${l.shelfId}`;
+      const total = Math.round(((claimed.get(key) ?? 0) + l.quantity) * 10000) / 10000;
+      if (total > available) return 'مجموع الكميات أكبر من المتوفر في الموقع المحدد';
+      claimed.set(key, total);
     }
     return null;
   });

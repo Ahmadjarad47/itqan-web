@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BomStore } from '@application/state/bom.store';
 import { EmployeeStore } from '@application/state/organization.store';
@@ -98,10 +98,13 @@ export class AddComponentDialog {
   });
 
   constructor() {
+    // Reset once per opening: later edits of the parent must not wipe what the user typed.
     effect(() => {
-      if (this.open()) {
-        this.form.reset({ discipline: this.parent()?.discipline ?? 'mechanical', ownerId: this.parent()?.ownerId ?? '', quantity: 1, unit: 'pcs' });
-      }
+      if (!this.open()) return;
+      this.parentId();
+      untracked(() =>
+        this.form.reset({ discipline: this.parent()?.discipline ?? 'mechanical', ownerId: this.parent()?.ownerId ?? '', quantity: 1, unit: 'pcs' }),
+      );
     });
   }
 

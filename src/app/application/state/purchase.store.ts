@@ -12,6 +12,7 @@ import {
 import { PurchaseRepository } from '@domain/ports/repositories';
 import { createPurchaseStages, DEFAULT_CRITERIA, nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
+import { TaskStore } from './task.store';
 
 const EMPTY_QUOTE_DETAILS: Omit<SupplierQuote, 'id' | 'supplierId' | 'unitPrice' | 'leadTimeDays' | 'note'> = {
   receivedAt: null,
@@ -28,6 +29,7 @@ export type NewPurchase = Pick<PurchaseRequest, 'title' | 'projectId' | 'nodeId'
 @Injectable({ providedIn: 'root' })
 export class PurchaseStore extends EntityStore<PurchaseRequest> {
   protected readonly repository = inject(PurchaseRepository);
+  private readonly tasks = inject(TaskStore);
 
   readonly byNode = computed(() => {
     const map = new Map<EntityId, PurchaseRequest>();
@@ -162,7 +164,15 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
     this.modify(id, (request) => ({ ...request, mcdm: { ...request.mcdm, criteria } }));
   }
 
+  /** Forgets a deleted warehouse as the destination of supply requests. */
+  clearWarehouse(warehouseId: EntityId): void {
+    this.all()
+      .filter((request) => request.warehouseId === warehouseId)
+      .forEach((request) => this.modify(request.id, { warehouseId: null }));
+  }
+
   remove(id: EntityId): void {
     this.removeWhere((request) => request.id === id);
+    this.tasks.unlinkPurchase(id);
   }
 }
