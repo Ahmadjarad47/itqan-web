@@ -2,12 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { InventoryStore } from '@application/state/inventory.store';
 import { RequisitionStore } from '@application/state/warehouse.store';
 import { featureProviders } from '../../testing/feature-fixtures';
+import { signInWith } from '../../../testing/stores';
 import { OutboundPanel } from './outbound-panel';
 
 describe('OutboundPanel issue validation', () => {
   /** Two requisition lines of the same item, which the requisition form allows. */
   async function setup(first: number, second: number) {
     TestBed.configureTestingModule({ providers: featureProviders() });
+    signInWith('inventory.manage');
     const material = TestBed.inject(InventoryStore).create({
       code: 'M-1', name: 'صاج', kind: 'raw', unit: 'pcs', unitCost: 5, minStock: 0, maxStock: 0,
       categoryId: null, natureId: null, costMethod: 'average', margin: { type: 'percent', value: 0 }, specFiles: [], notes: '',

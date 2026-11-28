@@ -80,7 +80,8 @@
                     <div class="subtle num">{{ r.requisition.deliveredAt | arDate }}</div>
                   }
                 } @else {
-                  <select class="select input--sm status-select" (change)="setStatus(r.requisition, $any($event.target).value); $any($event.target).value = r.requisition.status">
+                  <ng-template #readonlyStatus><span class="badge">{{ statusLabels[r.requisition.status] }}</span></ng-template>
+                  <select *appCan="'inventory.manage'; else readonlyStatus" class="select input--sm status-select" (change)="setStatus(r.requisition, $any($event.target).value); $any($event.target).value = r.requisition.status">
                     @for (s of statuses; track s) {
                       <option [value]="s" [selected]="s === r.requisition.status">{{ statusLabels[s] }}</option>
                     }

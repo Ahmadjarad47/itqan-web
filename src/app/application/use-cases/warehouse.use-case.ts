@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
-import { EntityId, IsoDate, StockLocation } from '@domain/models';
+import { EntityId, IsoDate, RequisitionStatus, StockLocation } from '@domain/models';
 import { adjustLocations, canIssueOn, canWithdraw, deductAnywhere, Guard, isStageDone, todayIso } from '@domain/rules';
+import { AuthorizationService } from '../auth/authorization.service';
 import { IssueInput, InventoryStore, ReceiptInput } from '../state/inventory.store';
 import { PurchaseStore } from '../state/purchase.store';
 import { RequisitionStore } from '../state/warehouse.store';
@@ -14,12 +15,15 @@ export interface RequisitionIssueLine {
   readonly sellPrice: number | null;
 }
 
+const NOT_ALLOWED: Guard = { allowed: false, reason: 'لا تملك صلاحية صرف المخزون' };
+
 /** Warehouse flows that span several stores. */
 @Injectable({ providedIn: 'root' })
 export class WarehouseUseCase {
   private readonly inventory = inject(InventoryStore);
   private readonly purchases = inject(PurchaseStore);
   private readonly requisitions = inject(RequisitionStore);
+  private readonly auth = inject(AuthorizationService);
 
   /** Supply requests that passed quality control and wait to be received (screen 3 → screen 4). */
   awaitingReceipt() {
@@ -69,8 +73,15 @@ export class WarehouseUseCase {
     return { allowed: true };
   }
 
+  setRequisitionStatus(requisitionId: EntityId, status: RequisitionStatus): Guard {
+    if (!this.auth.can('inventory.manage')) return NOT_ALLOWED;
+    this.requisitions.setStatus(requisitionId, status);
+    return { allowed: true };
+  }
+
   /** Issues the prepared lines of a requisition and closes it. */
   issueRequisition(requisitionId: EntityId, lines: readonly RequisitionIssueLine[], date: IsoDate = todayIso()): Guard {
+    if (!this.auth.can('inventory.manage')) return NOT_ALLOWED;
     const requisition = this.requisitions.find(requisitionId);
     if (!requisition) return { allowed: false, reason: 'طلب الاحتياج غير موجود' };
     const issued = lines.filter((line) => line.quantity > 0);

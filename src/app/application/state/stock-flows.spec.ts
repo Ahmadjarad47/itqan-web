@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { createPurchaseStages } from '@domain/rules';
-import { inMemoryRepositories } from '../../testing/stores';
+import { inMemoryRepositories, signInWith } from '../../testing/stores';
 import { PurchaseWorkflowUseCase } from '../use-cases/purchase-workflow.use-case';
 import { WarehouseUseCase } from '../use-cases/warehouse.use-case';
 import { InventoryStore } from './inventory.store';
@@ -12,6 +12,7 @@ const B = { warehouseId: 'wh-b', shelfId: null };
 
 function setup() {
   TestBed.configureTestingModule({ providers: inMemoryRepositories() });
+  signInWith('inventory.manage');
   const inventory = TestBed.inject(InventoryStore);
   const material = inventory.create({
     code: 'M-1',
@@ -98,7 +99,8 @@ describe('stock availability', () => {
       lines: [{ materialId: id, quantity: 4, note: '' }],
     });
     const line = { lineId: 'l', materialId: id, ...A, quantity: 2, sellPrice: null };
-    TestBed.inject(WarehouseUseCase).issueRequisition(rq.id, [line, line]);
+    const result = TestBed.inject(WarehouseUseCase).issueRequisition(rq.id, [line, line]);
+    expect(result.reason).toBe('الكمية أكبر من المتوفر');
     expect(stock()).toBe(13);
     expect(requisitions.find(rq.id)!.status).toBe('new');
     expect(inventory.movements().filter((m) => m.type === 'issue')).toHaveLength(0);

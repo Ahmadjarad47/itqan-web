@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { AuthorizationService } from '@application/auth/authorization.service';
 import { InventoryStore } from '@application/state/inventory.store';
 import { DepartmentStore } from '@application/state/organization.store';
 import { ProjectStore } from '@application/state/project.store';
@@ -50,6 +51,7 @@ interface IssueLine {
 })
 export class OutboundPanel {
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthorizationService);
   private readonly flows = inject(WarehouseUseCase);
   protected readonly inventory = inject(InventoryStore);
   protected readonly requisitions = inject(RequisitionStore);
@@ -195,7 +197,11 @@ export class OutboundPanel {
       this.openIssue(requisition);
       return;
     }
-    this.requisitions.setStatus(requisition.id, status);
+    const result = this.flows.setRequisitionStatus(requisition.id, status);
+    if (!result.allowed) {
+      this.toast.warning('لم تتغير الحالة', result.reason);
+      return;
+    }
     this.toast.info(`${requisition.number}: ${REQUISITION_STATUS_LABELS[status]}`);
   }
 
@@ -205,6 +211,8 @@ export class OutboundPanel {
   }
 
   protected openIssue(requisition: Requisition): void {
+    // Reachable from the status list and the requisition form, not only from the guarded button.
+    if (!this.auth.can('inventory.manage')) return;
     this.issuing.set(requisition);
     this.issueDate.set(todayIso());
     this.issueLines.set(

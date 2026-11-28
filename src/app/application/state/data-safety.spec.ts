@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { inMemoryRepositories } from '../../testing/stores';
+import { inMemoryRepositories, signInWith } from '../../testing/stores';
 import { WarehouseUseCase } from '../use-cases/warehouse.use-case';
 import { InventoryStore } from './inventory.store';
 import { NewPurchase, PurchaseStore } from './purchase.store';
@@ -9,6 +9,7 @@ const A = { warehouseId: 'wh-a', shelfId: null };
 
 function setup() {
   TestBed.configureTestingModule({ providers: inMemoryRepositories() });
+  signInWith('inventory.manage');
   const inventory = TestBed.inject(InventoryStore);
   const purchases = TestBed.inject(PurchaseStore);
   const flows = TestBed.inject(WarehouseUseCase);
@@ -98,7 +99,7 @@ describe('back-dated withdrawals', () => {
     } as unknown as Parameters<RequisitionStore['create']>[0]);
     const line = { lineId: requisition.lines[0].id, materialId: id, ...A, quantity: 4, sellPrice: null };
     const result = flows.issueRequisition(requisition.id, [line], '2026-03-01');
-    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe('لا يوجد رصيد كافٍ في هذا التاريخ مقارنةً بالحركات المسجلة');
     expect([requisitions.find(requisition.id)!.status, stock()]).toEqual(['new', 10]);
   });
 });
