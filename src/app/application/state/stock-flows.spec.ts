@@ -139,6 +139,23 @@ describe('receiving a supply request from the inbound screen', () => {
   });
 });
 
+describe('linking a request to the card that received it', () => {
+  it('links an unlinked request only when the receipt is accepted', () => {
+    const { id } = setup();
+    const purchases = TestBed.inject(PurchaseStore);
+    const warehouse = TestBed.inject(WarehouseUseCase);
+    const created = purchases.create(newPurchase());
+    const input = { materialId: id, ...A, quantity: 5, unitCost: 5, date: '2026-01-02', source: 'supply' as const, documentNo: created.number, purchaseId: created.id };
+
+    warehouse.receive(input);
+    expect(purchases.find(created.id)!.materialId).toBe(id);
+
+    purchases.update(created.id, { materialId: null });
+    expect(warehouse.receive(input).allowed).toBe(false);
+    expect(purchases.find(created.id)!.materialId).toBeNull();
+  });
+});
+
 describe('document numbers after a delete', () => {
   it('never repeats a purchase number', () => {
     setup();

@@ -201,11 +201,6 @@ export class InboundPanel {
   protected save(): void {
     if (this.error()) return;
     const m = this.material()!;
-    const request = this.purchases.find(this.purchaseId());
-    if (request && !request.materialId) {
-      // A project purchase received here is linked to the chosen card.
-      this.purchases.update(request.id, { materialId: m.id });
-    }
     const result = this.flows.receive({
       materialId: m.id,
       warehouseId: this.warehouseId()!,

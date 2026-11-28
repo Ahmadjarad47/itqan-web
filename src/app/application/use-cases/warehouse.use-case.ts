@@ -44,6 +44,8 @@ export class WarehouseUseCase {
     }
     this.inventory.receive(input);
     const request = this.purchases.find(input.purchaseId);
+    // A project purchase received here is linked to the chosen card.
+    if (request && !request.materialId) this.purchases.update(request.id, { materialId: input.materialId });
     if (request && !isStageDone(request, 'warehouseReceipt')) {
       this.purchases.updateStage(request.id, 'warehouseReceipt', { done: true, date: input.date });
     }
