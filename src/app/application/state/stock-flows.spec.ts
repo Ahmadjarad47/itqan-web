@@ -145,6 +145,8 @@ describe('linking a request to the card that received it', () => {
     const purchases = TestBed.inject(PurchaseStore);
     const warehouse = TestBed.inject(WarehouseUseCase);
     const created = purchases.create(newPurchase());
+    purchases.update(created.id, { qualityResult: 'passed' });
+    purchases.updateStage(created.id, 'qualityControl', { done: true, date: '2026-01-01' });
     const input = { materialId: id, ...A, quantity: 5, unitCost: 5, date: '2026-01-02', source: 'supply' as const, documentNo: created.number, purchaseId: created.id };
 
     warehouse.receive(input);

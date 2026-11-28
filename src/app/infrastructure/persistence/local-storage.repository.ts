@@ -1,7 +1,36 @@
+import { signal } from '@angular/core';
 import { Entity, EntityId } from '@domain/models';
 import { Repository } from '@domain/ports/repositories';
 
 export const STORAGE_NAMESPACE = 'erp101.v2.';
+
+export interface StorageIssue {
+  /** 'write': changes are only in memory. 'corrupt': stored data was unreadable. */
+  readonly kind: 'write' | 'corrupt';
+  readonly collection: string;
+}
+
+/** Persistence problems the user has to know about. */
+export const storageIssues = signal<readonly StorageIssue[]>([]);
+
+function reportIssue(kind: StorageIssue['kind'], collection: string): void {
+  storageIssues.update((issues) =>
+    issues.some((i) => i.kind === kind && i.collection === collection) ? issues : [...issues, { kind, collection }],
+  );
+}
+
+function resolveWriteIssue(collection: string): void {
+  storageIssues.update((issues) => issues.filter((i) => !(i.kind === 'write' && i.collection === collection)));
+}
+
+function parseCollection<T>(raw: string): T[] | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) ? (value as T[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Collections with pending writes, flushed together once the browser is idle. */
 const dirty = new Map<string, () => void>();
@@ -41,6 +70,8 @@ if (typeof window !== 'undefined') {
  */
 export class LocalStorageRepository<T extends Entity> implements Repository<T> {
   private cache: T[] | null = null;
+  /** Set when unreadable stored data could not be copied aside: it must not be overwritten. */
+  private readOnly = false;
 
   constructor(
     private readonly collection: string,
@@ -86,15 +117,14 @@ export class LocalStorageRepository<T extends Entity> implements Repository<T> {
 
   private async items(): Promise<T[]> {
     if (this.cache) return this.cache;
-    try {
-      const raw = localStorage.getItem(this.key);
-      const stored: unknown = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(stored)) {
-        this.cache = stored as T[];
+    const raw = this.read();
+    if (raw) {
+      const stored = parseCollection<T>(raw);
+      if (stored) {
+        this.cache = stored;
         return this.cache;
       }
-    } catch {
-      // Storage unavailable or corrupted: fall back to seed data.
+      this.preserve(raw);
     }
     const seeded = await this.seed();
     if (this.cache) return this.cache;
@@ -102,13 +132,37 @@ export class LocalStorageRepository<T extends Entity> implements Repository<T> {
     return seeded;
   }
 
+  private read(): string | null {
+    try {
+      return localStorage.getItem(this.key);
+    } catch {
+      return null; // Storage unavailable: work from the seed data.
+    }
+  }
+
+  /** Copies unreadable data aside before anything can replace it. */
+  private preserve(raw: string): void {
+    try {
+      localStorage.setItem(`${this.key}.corrupt-${Date.now()}`, raw);
+    } catch {
+      this.readOnly = true;
+    }
+    reportIssue('corrupt', this.collection);
+  }
+
   private persist(items: T[]): void {
     this.cache = items;
+    if (this.readOnly) {
+      reportIssue('write', this.collection);
+      return;
+    }
     scheduleFlush(this.key, () => {
       try {
         localStorage.setItem(this.key, JSON.stringify(this.cache ?? items));
+        resolveWriteIssue(this.collection);
       } catch {
-        // Quota exceeded or private mode: keep working from memory.
+        // Quota exceeded or private mode: keep working from memory, and say so.
+        reportIssue('write', this.collection);
       }
     });
   }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { PurchaseStore } from '@application/state/purchase.store';
+import { ToastService } from '@core/feedback/toast.service';
 import { SupplierStore } from '@application/state/supplier.store';
 import {
   CONTACT_CHANNEL_ICONS,
@@ -271,6 +272,7 @@ interface QuoteRow {
 export class QuotesPanel {
   protected readonly purchases = inject(PurchaseStore);
   protected readonly suppliers = inject(SupplierStore);
+  private readonly toast = inject(ToastService);
 
   readonly request = input.required<PurchaseRequest>();
 
@@ -320,7 +322,7 @@ export class QuotesPanel {
   });
 
   protected add(): void {
-    this.purchases.addQuote(this.request().id, {
+    const result = this.purchases.addQuote(this.request().id, {
       supplierId: this.supplierId(),
       unitPrice: this.price() ?? 0,
       leadTimeDays: this.lead() ?? 0,
@@ -332,6 +334,10 @@ export class QuotesPanel {
       warranty: this.warranty().trim(),
       note: this.note().trim(),
     });
+    if (!result.allowed) {
+      this.toast.warning('لم يُضف العرض', result.reason);
+      return;
+    }
     this.supplierId.set('');
     this.price.set(null);
     this.lead.set(null);

@@ -121,6 +121,18 @@
     </header>
 
     <main class="content" [attr.aria-busy]="loading()">
+      @if (unsaved()) {
+        <div class="storage-alert" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <span><strong>التغييرات لم تُحفظ.</strong> تعذّرت الكتابة في تخزين المتصفح (قد يكون ممتلئاً). ستضيع التعديلات إذا أغلقت الصفحة أو أعدت تحميلها.</span>
+        </div>
+      }
+      @if (unreadable()) {
+        <div class="storage-alert" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <span><strong>بعض البيانات المحفوظة تالفة.</strong> تظهر الآن بيانات تجريبية مكانها. احتُفظ بنسخة من الأصل في تخزين المتصفح إن اتسعت المساحة، وإلا فالأصل باقٍ كما هو ولن يُكتب فوقه.</span>
+        </div>
+      }
       @if (loading()) {
         <app-page-skeleton />
       }

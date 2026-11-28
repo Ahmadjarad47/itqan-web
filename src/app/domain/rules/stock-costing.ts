@@ -178,6 +178,27 @@ export function canWithdraw(
   return { allowed: true };
 }
 
+/**
+ * A withdrawal dated before later movements must be covered on its own date and must not
+ * starve them. One dated after the whole history only depends on the stock on hand.
+ */
+export function canIssueOn(movements: readonly StockMovement[], date: IsoDate, quantity: number): Guard {
+  if (!date) return { allowed: false, reason: 'حدد تاريخ الحركة' };
+  const history = movements.filter((m) => m.type !== 'transfer').sort(compareMovements);
+  if (!history.some((m) => movementDate(m) > date)) return { allowed: true };
+  let balance = 0;
+  let lowest = Infinity;
+  for (const movement of history) {
+    const isLater = movementDate(movement) > date;
+    if (isLater) lowest = Math.min(lowest, balance);
+    balance = roundQty(balance + movement.quantity);
+    if (isLater) lowest = Math.min(lowest, balance);
+  }
+  return quantity > lowest
+    ? { allowed: false, reason: 'لا يوجد رصيد كافٍ في هذا التاريخ مقارنةً بالحركات المسجلة' }
+    : { allowed: true };
+}
+
 /** Takes an outgoing quantity from the fullest locations first (when no location is given). */
 export function deductAnywhere(locations: readonly StockLocation[], quantity: number): StockLocation[] {
   let remaining = quantity;

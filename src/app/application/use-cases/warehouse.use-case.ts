@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { EntityId, IsoDate, StockLocation } from '@domain/models';
-import { adjustLocations, canWithdraw, deductAnywhere, Guard, isStageDone, todayIso } from '@domain/rules';
+import { adjustLocations, canIssueOn, canWithdraw, deductAnywhere, Guard, isStageDone, todayIso } from '@domain/rules';
 import { IssueInput, InventoryStore, ReceiptInput } from '../state/inventory.store';
 import { PurchaseStore } from '../state/purchase.store';
 import { RequisitionStore } from '../state/warehouse.store';
@@ -39,8 +39,9 @@ export class WarehouseUseCase {
    * final stage («الاستلام في المستودع») is closed at the same time.
    */
   receive(input: ReceiptInput): Guard {
-    if (input.purchaseId && this.inventory.hasReceiptFor(input.purchaseId)) {
-      return { allowed: false, reason: 'استُلم طلب التوريد هذا من قبل' };
+    if (input.purchaseId) {
+      const guard = this.canReceiveFor(input.purchaseId, input.materialId);
+      if (!guard.allowed) return guard;
     }
     this.inventory.receive(input);
     const request = this.purchases.find(input.purchaseId);
@@ -52,12 +53,28 @@ export class WarehouseUseCase {
     return { allowed: true };
   }
 
+  /** A supply request is received once, for its own item, and only after passing quality control. */
+  private canReceiveFor(purchaseId: EntityId, materialId: EntityId): Guard {
+    const request = this.purchases.find(purchaseId);
+    if (!request) return { allowed: false, reason: 'طلب التوريد غير موجود' };
+    if (this.inventory.hasReceiptFor(purchaseId) || isStageDone(request, 'warehouseReceipt')) {
+      return { allowed: false, reason: 'استُلم طلب التوريد هذا من قبل' };
+    }
+    if (request.qualityResult !== 'passed' || !isStageDone(request, 'qualityControl')) {
+      return { allowed: false, reason: 'لا يُستلم إلا طلب اجتاز فحص الجودة' };
+    }
+    if (request.materialId !== materialId && this.inventory.find(request.materialId)) {
+      return { allowed: false, reason: 'العنصر المختار لا يطابق عنصر طلب التوريد' };
+    }
+    return { allowed: true };
+  }
+
   /** Issues the prepared lines of a requisition and closes it. */
   issueRequisition(requisitionId: EntityId, lines: readonly RequisitionIssueLine[], date: IsoDate = todayIso()): Guard {
     const requisition = this.requisitions.find(requisitionId);
     if (!requisition) return { allowed: false, reason: 'طلب الاحتياج غير موجود' };
     const issued = lines.filter((line) => line.quantity > 0);
-    const guard = this.checkStock(issued);
+    const guard = this.checkStock(issued, date);
     if (!guard.allowed) return guard;
     issued.forEach((line) => {
         const input: IssueInput = {
@@ -79,12 +96,17 @@ export class WarehouseUseCase {
   }
 
   /** Checks the lines together, so two lines cannot both claim the same stock. */
-  private checkStock(lines: readonly RequisitionIssueLine[]): Guard {
+  private checkStock(lines: readonly RequisitionIssueLine[], date: IsoDate): Guard {
+    const claimed = new Map<EntityId, number>();
     const remaining = new Map<EntityId, readonly StockLocation[]>();
     for (const line of lines) {
       const locations = remaining.get(line.materialId) ?? this.inventory.find(line.materialId)?.locations ?? [];
       const guard = canWithdraw(locations, line.warehouseId, line.shelfId, line.quantity);
       if (!guard.allowed) return guard;
+      const total = (claimed.get(line.materialId) ?? 0) + line.quantity;
+      const onDate = canIssueOn(this.inventory.movementsByMaterial().get(line.materialId) ?? [], date, total);
+      if (!onDate.allowed) return onDate;
+      claimed.set(line.materialId, total);
       remaining.set(
         line.materialId,
         line.warehouseId

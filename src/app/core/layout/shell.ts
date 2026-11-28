@@ -8,7 +8,7 @@ import { AuthorizationService } from '@application/auth/authorization.service';
 import { RoleStore } from '@application/state/role.store';
 import { SessionStore } from '@application/state/session.store';
 import { firstAllowedLink } from '@core/auth/permission.guard';
-import { clearLocalStorageData } from '@infrastructure/persistence/local-storage.repository';
+import { clearLocalStorageData, storageIssues } from '@infrastructure/persistence/local-storage.repository';
 import { ConfirmService } from '@core/feedback/confirm.service';
 import { FeedbackHost } from '@core/feedback/feedback-host';
 import { Avatar } from '@shared/ui/avatar/avatar';
@@ -45,6 +45,9 @@ export class Shell {
   /** True while a navigation is still resolving (lazy chunk, guards) after a short grace period. */
   protected readonly loading = signal(false);
   private loadingTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Persistence problems stay on screen: a toast would vanish before the user reacts. */
+  protected readonly unsaved = computed(() => storageIssues().some((issue) => issue.kind === 'write'));
+  protected readonly unreadable = computed(() => storageIssues().some((issue) => issue.kind === 'corrupt'));
   protected readonly today = new Intl.DateTimeFormat('ar-SY-u-nu-latn', {
     weekday: 'long',
     day: 'numeric',

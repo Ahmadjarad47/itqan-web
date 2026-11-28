@@ -115,6 +115,21 @@ export function isContactOverdue(contact: SupplierContact, today: IsoDate): bool
   return !contact.replied && !!contact.expectedReplyDate && contact.expectedReplyDate < today;
 }
 
+/** Checks the numbers of a quotation (or of an edit to one) before they can reach stock costing. */
+export function canSaveQuote(values: Partial<Pick<SupplierQuote, 'unitPrice' | 'shippingCost' | 'leadTimeDays'>>): Guard {
+  const { unitPrice, shippingCost, leadTimeDays } = values;
+  if (unitPrice !== undefined && !(Number.isFinite(unitPrice) && unitPrice > 0)) {
+    return { allowed: false, reason: 'سعر الوحدة يجب أن يكون أكبر من صفر' };
+  }
+  if (shippingCost !== undefined && !(Number.isFinite(shippingCost) && shippingCost >= 0)) {
+    return { allowed: false, reason: 'تكلفة الشحن لا يمكن أن تكون سالبة' };
+  }
+  if (leadTimeDays !== undefined && !(Number.isInteger(leadTimeDays) && leadTimeDays >= 0)) {
+    return { allowed: false, reason: 'مدة التوريد عدد أيام صحيح غير سالب' };
+  }
+  return { allowed: true };
+}
+
 /** Total landed cost of a quotation for the requested quantity. */
 export function quoteTotal(quote: SupplierQuote, quantity: number): number {
   return quote.unitPrice * quantity + (quote.shippingCost || 0);

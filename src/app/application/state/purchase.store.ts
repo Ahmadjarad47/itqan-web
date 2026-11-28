@@ -10,7 +10,7 @@ import {
   SupplierQuote,
 } from '@domain/models';
 import { PurchaseRepository } from '@domain/ports/repositories';
-import { createPurchaseStages, DEFAULT_CRITERIA, nextSequence, todayIso } from '@domain/rules';
+import { canSaveQuote, createPurchaseStages, DEFAULT_CRITERIA, Guard, nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 import { TaskStore } from './task.store';
 
@@ -103,15 +103,20 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
   }
 
   /** Records the quote and marks the supplier's RFQ contact as replied. */
-  addQuote(id: EntityId, quote: Omit<SupplierQuote, 'id'>): void {
+  addQuote(id: EntityId, quote: Omit<SupplierQuote, 'id'>): Guard {
+    const guard = canSaveQuote(quote);
+    if (!guard.allowed) return guard;
     this.modify(id, (request) => ({
       ...request,
       quotes: [...request.quotes, { ...quote, id: newId('q') }],
       contacts: request.contacts.map((c) => (c.supplierId === quote.supplierId ? { ...c, replied: true } : c)),
     }));
+    return guard;
   }
 
-  updateQuote(id: EntityId, quoteId: EntityId, changes: Partial<Omit<SupplierQuote, 'id' | 'supplierId'>>): void {
+  updateQuote(id: EntityId, quoteId: EntityId, changes: Partial<Omit<SupplierQuote, 'id' | 'supplierId'>>): Guard {
+    const guard = canSaveQuote(changes);
+    if (!guard.allowed) return guard;
     this.modify(id, (request) => ({
       ...request,
       quotes: request.quotes.map((q) => (q.id === quoteId ? { ...q, ...changes } : q)),
@@ -119,6 +124,7 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
         ? { unitPrice: changes.unitPrice }
         : {}),
     }));
+    return guard;
   }
 
   addContact(id: EntityId, contact: Omit<SupplierContact, 'id'>): void {

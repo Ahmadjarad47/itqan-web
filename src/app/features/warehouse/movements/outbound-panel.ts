@@ -280,6 +280,7 @@ export class OutboundPanel {
       }
       this.toast.success('تمت المناقلة', `${m.name} → ${this.warehouses.locationLabel(this.toWarehouse(), this.toShelf())}`);
     } else {
+      const check = this.inventory.canIssue(m.id, this.fromWarehouse(), this.fromShelf(), this.quantity(), this.date());
       const movement = this.inventory.issue({
         materialId: m.id,
         type: 'writeoff',
@@ -290,7 +291,7 @@ export class OutboundPanel {
         reference: `شطب: ${this.reference().trim()}`,
       });
       if (!movement) {
-        this.toast.warning('لم يتم الشطب', 'الكمية أكبر من المتوفر');
+        this.toast.warning('لم يتم الشطب', check.reason);
         return;
       }
       this.toast.success('تم شطب الكمية من المخزون', m.name);

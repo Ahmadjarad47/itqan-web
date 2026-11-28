@@ -14,6 +14,7 @@ import {
   adjustLocations,
   availableQuantity,
   buildLedger,
+  canIssueOn,
   canWithdraw,
   compareMovements,
   deductAnywhere,
@@ -261,14 +262,21 @@ export class InventoryStore extends EntityStore<Material> {
     return movement;
   }
 
+  /** Whether the stock covers a withdrawal, both now and on its date. */
+  canIssue(materialId: EntityId, warehouseId: EntityId | null, shelfId: EntityId | null, quantity: number, date: IsoDate): Guard {
+    const material = this.find(materialId);
+    if (!material) return { allowed: false, reason: 'العنصر غير موجود' };
+    const onHand = canWithdraw(material.locations, warehouseId, shelfId, quantity);
+    return onHand.allowed ? canIssueOn(this.movementsByMaterial().get(materialId) ?? [], date, quantity) : onHand;
+  }
+
   /**
    * Outgoing quantity (صرف، إتلاف، استهلاك); the cost is taken from the history.
    * Returns nothing, and records nothing, when the stock does not cover it.
    */
   issue(input: IssueInput): StockMovement | undefined {
-    const material = this.find(input.materialId);
     const quantity = Math.abs(input.quantity);
-    if (!material || !canWithdraw(material.locations, input.warehouseId, input.shelfId, quantity).allowed) return undefined;
+    if (!this.canIssue(input.materialId, input.warehouseId, input.shelfId, quantity, input.date).allowed) return undefined;
     return this.recordIssue(input, quantity);
   }
 
