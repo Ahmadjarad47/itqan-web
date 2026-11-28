@@ -86,7 +86,7 @@
               <td (click)="$event.stopPropagation()">
                 @if (v.task.archived) {
                   <button type="button" class="btn btn--sm btn--ghost" (click)="archive(v.task.id, false)"><app-icon name="undo" [size]="14" /> استعادة</button>
-                } @else if (v.task.status === 'completed') {
+                } @else if (v.task.status === 'completed' || v.task.status === 'cancelled') {
                   <button type="button" class="btn btn--sm" (click)="archive(v.task.id, true)"><app-icon name="archive" [size]="14" /> أرشفة</button>
                 } @else if (v.task.status === 'rejected') {
                   <button type="button" class="btn btn--sm btn--primary" (click)="openReassign(v.task)"><app-icon name="send" [size]="14" /> إعادة إسناد</button>

@@ -4,6 +4,7 @@ import { BomStore } from '@application/state/bom.store';
 import { PurchaseStore } from '@application/state/purchase.store';
 import { TaskStore } from '@application/state/task.store';
 import { BomNode, EntityId } from '@domain/models';
+import { isTaskOpen } from '@domain/rules';
 import { Icon } from '@shared/ui/icon/icon';
 
 interface RouteAction {
@@ -129,6 +130,6 @@ export class NodeActions {
   /** Open tasks assigned on the item or on any component below it. */
   protected readonly taskCount = computed(() => {
     const ids = new Set([this.node().id, ...this.bom.tree().descendants(this.node().id).map((n) => n.id)]);
-    return this.taskStore.active().filter((t) => t.nodeId && ids.has(t.nodeId) && t.status !== 'completed').length;
+    return this.taskStore.active().filter((t) => t.nodeId && ids.has(t.nodeId) && isTaskOpen(t)).length;
   });
 }

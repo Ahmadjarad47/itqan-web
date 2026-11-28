@@ -1,7 +1,7 @@
 import { Entity, EntityId, IsoDate, IsoDateTime } from './common';
 import { PurchaseStageKey } from './purchase';
 
-export type TaskStatus = 'sent' | 'accepted' | 'rejected' | 'active' | 'completed';
+export type TaskStatus = 'sent' | 'accepted' | 'rejected' | 'active' | 'completed' | 'cancelled';
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   sent: 'مُرسلة',
@@ -9,6 +9,7 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   rejected: 'مرفوضة / مُعادة',
   active: 'نشطة',
   completed: 'مكتملة',
+  cancelled: 'ملغاة',
 };
 
 export type RejectReason = 'time' | 'department' | 'other';

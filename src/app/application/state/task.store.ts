@@ -124,11 +124,17 @@ export class TaskStore extends EntityStore<WorkTask> {
     this.modify(id, { archived });
   }
 
-  /** Keeps the task and its history, without pointing at a deleted purchase request. */
+  /**
+   * Cancels the unfinished tasks of a deleted purchase request. Every task keeps its history,
+   * without pointing at the deleted request.
+   */
   unlinkPurchase(purchaseId: EntityId): void {
     this.all()
       .filter((task) => task.purchaseId === purchaseId)
-      .forEach((task) => this.modify(task.id, { purchaseId: null }));
+      .forEach((task) => {
+        this.transition(task.id, 'cancelled', 'أُلغيت لحذف طلب الشراء');
+        this.modify(task.id, { purchaseId: null });
+      });
   }
 
   /** Same for a deleted routing operation. */

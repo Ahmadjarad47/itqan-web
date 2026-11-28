@@ -20,7 +20,7 @@ import {
   TaskStatus,
   WorkTask,
 } from '@domain/models';
-import { PURCHASE_STAGES, todayIso, unreadMessages } from '@domain/rules';
+import { isTaskOpen, PURCHASE_STAGES, todayIso, unreadMessages } from '@domain/rules';
 import { TaskChat } from '../shared/task-chat';
 
 type TaskScope = 'project' | 'standalone';
@@ -76,11 +76,12 @@ export class TaskManagerPage {
     { key: 'active', label: 'نشطة' },
     { key: 'rejected', label: 'مُعادة' },
     { key: 'completed', label: 'مكتملة' },
+    { key: 'cancelled', label: 'ملغاة' },
     { key: 'archived', label: 'الأرشيف' },
   ];
 
   protected readonly counts = computed(() => {
-    const result = { all: 0, sent: 0, accepted: 0, active: 0, rejected: 0, completed: 0, archived: this.tasks.archived().length } as Record<Filter, number>;
+    const result = { all: 0, sent: 0, accepted: 0, active: 0, rejected: 0, completed: 0, cancelled: 0, archived: this.tasks.archived().length } as Record<Filter, number>;
     for (const task of this.tasks.active()) {
       result.all++;
       result[task.status]++;
@@ -100,6 +101,7 @@ export class TaskManagerPage {
     const rows = this.departments.all().map((dept) => {
       const list = all.filter((t) => t.departmentId === dept.id);
       const views = list.map((t) => this.views.view(t));
+      const counted = views.filter((v) => v.task.status !== 'cancelled');
       return {
         dept,
         total: list.length,
@@ -107,7 +109,7 @@ export class TaskManagerPage {
         completed: list.filter((t) => t.status === 'completed').length,
         quantity: views.reduce((sum, v) => sum + v.completedQuantity, 0),
         issues: list.reduce((sum, t) => sum + t.progress.filter((p) => !p.qualityOk).length, 0),
-        progress: views.length ? views.reduce((sum, v) => sum + v.progress, 0) / views.length : 0,
+        progress: counted.length ? counted.reduce((sum, v) => sum + v.progress, 0) / counted.length : 0,
       };
     });
     return rows.filter((r) => r.total > 0);
@@ -116,7 +118,7 @@ export class TaskManagerPage {
   protected readonly kpis = computed(() => {
     const views = this.tasks.active().map((t) => this.views.view(t));
     return {
-      open: views.filter((v) => v.task.status !== 'completed').length,
+      open: views.filter((v) => isTaskOpen(v.task)).length,
       active: views.filter((v) => v.task.status === 'active').length,
       overdue: views.filter((v) => v.overdue).length,
       returned: views.filter((v) => v.task.status === 'rejected').length,

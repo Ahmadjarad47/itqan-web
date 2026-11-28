@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { isTaskOverdue } from '@domain/rules';
 import { inMemoryRepositories } from '../../testing/stores';
 import { ProjectSetupUseCase } from '../use-cases/project-setup.use-case';
 import { SourcingUseCase } from '../use-cases/sourcing.use-case';
@@ -55,6 +56,27 @@ describe('deletes leave no dangling links', () => {
     const { id } = tasks.create(task({ kind: 'purchase', purchaseId: request.id }));
     purchases.remove(request.id);
     expect(tasks.find(id)!.purchaseId).toBeNull();
+  });
+
+  it('cancels an unfinished task of a deleted purchase and notes why', () => {
+    const { purchases, tasks } = setup();
+    const request = purchases.create(purchase());
+    const { id } = tasks.create(task({ kind: 'purchase', purchaseId: request.id }));
+    tasks.transition(id, 'accepted');
+    purchases.remove(request.id);
+    expect(tasks.find(id)!.status).toBe('cancelled');
+    expect(tasks.find(id)!.history.at(-1)!.note).toBe('أُلغيت لحذف طلب الشراء');
+    expect(tasks.transition(id, 'active')).toBe(false);
+    expect(isTaskOverdue({ ...tasks.find(id)!, end: '2000-01-01' }, '2026-01-01')).toBe(false);
+  });
+
+  it('keeps a completed task completed when its purchase is deleted', () => {
+    const { purchases, tasks } = setup();
+    const request = purchases.create(purchase());
+    const { id } = tasks.create(task({ kind: 'purchase', purchaseId: request.id }));
+    (['accepted', 'active', 'completed'] as const).forEach((status) => tasks.transition(id, status));
+    purchases.remove(request.id);
+    expect(tasks.find(id)!.status).toBe('completed');
   });
 
   it('unlinks tasks of a removed routing operation', () => {

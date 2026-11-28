@@ -1,12 +1,18 @@
 import { EntityId, IsoDate, TaskStatus, WorkTask } from '../models';
 
 const TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
-  sent: ['accepted', 'rejected'],
-  accepted: ['active'],
-  rejected: ['sent'],
-  active: ['completed'],
+  sent: ['accepted', 'rejected', 'cancelled'],
+  accepted: ['active', 'cancelled'],
+  rejected: ['sent', 'cancelled'],
+  active: ['completed', 'cancelled'],
   completed: [],
+  cancelled: [],
 };
+
+/** Still waiting for someone to act: neither done nor called off. */
+export function isTaskOpen(task: WorkTask): boolean {
+  return task.status !== 'completed' && task.status !== 'cancelled';
+}
 
 export function canTransition(from: TaskStatus, to: TaskStatus): boolean {
   return TRANSITIONS[from].includes(to);
@@ -23,7 +29,7 @@ export function taskProgress(task: WorkTask): number {
 }
 
 export function isTaskOverdue(task: WorkTask, today: IsoDate): boolean {
-  return task.status !== 'completed' && task.end < today;
+  return isTaskOpen(task) && task.end < today;
 }
 
 /** Messages written by others since the user last opened the task chat. */
