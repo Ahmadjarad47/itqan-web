@@ -212,7 +212,10 @@ export class OutboundPanel {
 
   protected openIssue(requisition: Requisition): void {
     // Reachable from the status list and the requisition form, not only from the guarded button.
-    if (!this.auth.can('inventory.manage')) return;
+    if (!this.auth.can('inventory.manage')) {
+      this.toast.warning('لا يمكن فتح الصرف', 'لا تملك صلاحية صرف المخزون');
+      return;
+    }
     this.issuing.set(requisition);
     this.issueDate.set(todayIso());
     this.issueLines.set(
@@ -274,7 +277,7 @@ export class OutboundPanel {
     if (this.moveError()) return;
     const m = this.material()!;
     if (this.reason() === 'transfer') {
-      const result = this.inventory.transfer({
+      const result = this.flows.transfer({
         materialId: m.id,
         from: { warehouseId: this.fromWarehouse()!, shelfId: this.fromShelf() },
         to: { warehouseId: this.toWarehouse()!, shelfId: this.toShelf() },
@@ -288,8 +291,7 @@ export class OutboundPanel {
       }
       this.toast.success('تمت المناقلة', `${m.name} → ${this.warehouses.locationLabel(this.toWarehouse(), this.toShelf())}`);
     } else {
-      const check = this.inventory.canIssue(m.id, this.fromWarehouse(), this.fromShelf(), this.quantity(), this.date());
-      const movement = this.inventory.issue({
+      const result = this.flows.writeOff({
         materialId: m.id,
         type: 'writeoff',
         warehouseId: this.fromWarehouse(),
@@ -298,8 +300,8 @@ export class OutboundPanel {
         date: this.date(),
         reference: `شطب: ${this.reference().trim()}`,
       });
-      if (!movement) {
-        this.toast.warning('لم يتم الشطب', check.reason);
+      if (!result.allowed) {
+        this.toast.warning('لم يتم الشطب', result.reason);
         return;
       }
       this.toast.success('تم شطب الكمية من المخزون', m.name);

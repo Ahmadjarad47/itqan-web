@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { RouterLink } from '@angular/router';
 import { AuthorizationService } from '@application/auth/authorization.service';
 import { InventoryStore } from '@application/state/inventory.store';
+import { WarehouseUseCase } from '@application/use-cases/warehouse.use-case';
 import { CatalogOptionStore, WarehouseStore } from '@application/state/warehouse.store';
 import { CanDirective } from '@core/auth/can.directive';
 import { ConfirmService } from '@core/feedback/confirm.service';
@@ -62,6 +63,7 @@ export class ItemCardPage {
 
   readonly materialId = input.required<string>();
 
+  private readonly flows = inject(WarehouseUseCase);
   protected readonly canManage = inject(AuthorizationService).can('inventory.manage');
 
   protected readonly unitLabels = UNIT_LABELS;
@@ -226,7 +228,7 @@ export class ItemCardPage {
   protected confirmTransfer(): void {
     const from = this.transferFrom();
     if (!from || this.transferError()) return;
-    const result = this.inventory.transfer({
+    const result = this.flows.transfer({
       materialId: this.materialId(),
       from,
       to: { warehouseId: this.toWarehouse()!, shelfId: this.toShelf() },

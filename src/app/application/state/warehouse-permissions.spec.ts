@@ -26,6 +26,10 @@ function setup(...permissions: Permission[]) {
   return {
     issue: () => flows.issueRequisition(requisition.id, [line], '2099-01-01'),
     setStatus: () => flows.setRequisitionStatus(requisition.id, 'preparing'),
+    transfer: () =>
+      flows.transfer({ materialId: material.id, from: A, to: { warehouseId: 'wh-b', shelfId: null }, quantity: 3, date: '2099-01-01', reference: 't' }),
+    writeOff: () => flows.writeOff({ materialId: material.id, type: 'writeoff', ...A, quantity: 3, date: '2099-01-01', reference: 'w' }),
+    places: () => inventory.find(material.id)!.locations.length,
     stock: () => inventory.find(material.id)!.stock,
     status: () => requisitions.find(requisition.id)!.status,
   };
@@ -42,6 +46,18 @@ describe('requisition permissions', () => {
     const { setStatus, status } = setup('inventory.view');
     expect(setStatus().allowed).toBe(false);
     expect(status()).toBe('new');
+  });
+
+  it('refuses a transfer and a write-off for a view-only user', () => {
+    const { transfer, writeOff, stock, places } = setup('inventory.view');
+    expect([transfer().allowed, writeOff().allowed]).toEqual([false, false]);
+    expect([stock(), places()]).toEqual([10, 1]);
+  });
+
+  it('lets a stock manager transfer and write off', () => {
+    const { transfer, writeOff, stock, places } = setup('inventory.manage');
+    expect([transfer().allowed, writeOff().allowed]).toEqual([true, true]);
+    expect([stock(), places()]).toEqual([7, 2]);
   });
 
   it('lets a stock manager change the status and issue', () => {

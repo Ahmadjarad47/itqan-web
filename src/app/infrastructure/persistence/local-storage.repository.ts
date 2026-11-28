@@ -172,7 +172,8 @@ export function clearLocalStorageData(): void {
   dirty.clear();
   try {
     Object.keys(localStorage)
-      .filter((key) => key.startsWith(STORAGE_NAMESPACE))
+      // Copies of unreadable data were promised to the user, so a reset leaves them alone.
+      .filter((key) => key.startsWith(STORAGE_NAMESPACE) && !key.includes('.corrupt-'))
       .forEach((key) => localStorage.removeItem(key));
   } catch {
     // Nothing to clear.

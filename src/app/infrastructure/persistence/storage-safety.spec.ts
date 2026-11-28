@@ -20,7 +20,19 @@ describe('LocalStorageRepository: unreadable or unwritable storage', () => {
     clearLocalStorageData();
     storageIssues.set([]);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  it('keeps the copy of unreadable data when the demo data is reset', async () => {
+    localStorage.setItem(KEY, '[{"id":"mine"');
+    await new LocalStorageRepository('rows', seed).getAll();
+    flushPendingWrites();
+    clearLocalStorageData();
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(backups()).toHaveLength(1);
+  });
 
   it.each(['[{"id":"mine"', '{"id":"mine"}'])('keeps a copy of unreadable data %s before replacing it', async (raw) => {
     localStorage.setItem(KEY, raw);

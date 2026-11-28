@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { EntityId, IsoDate, RequisitionStatus, StockLocation } from '@domain/models';
 import { adjustLocations, canIssueOn, canWithdraw, deductAnywhere, Guard, isStageDone, todayIso } from '@domain/rules';
 import { AuthorizationService } from '../auth/authorization.service';
-import { IssueInput, InventoryStore, ReceiptInput } from '../state/inventory.store';
+import { IssueInput, InventoryStore, ReceiptInput, TransferInput } from '../state/inventory.store';
 import { PurchaseStore } from '../state/purchase.store';
 import { RequisitionStore } from '../state/warehouse.store';
 
@@ -77,6 +77,18 @@ export class WarehouseUseCase {
     if (!this.auth.can('inventory.manage')) return NOT_ALLOWED;
     this.requisitions.setStatus(requisitionId, status);
     return { allowed: true };
+  }
+
+  transfer(input: TransferInput): Guard {
+    return this.auth.can('inventory.manage') ? this.inventory.transfer(input) : NOT_ALLOWED;
+  }
+
+  /** Removes damaged or lost stock (شطب). */
+  writeOff(input: IssueInput): Guard {
+    if (!this.auth.can('inventory.manage')) return NOT_ALLOWED;
+    const guard = this.inventory.canIssue(input.materialId, input.warehouseId, input.shelfId, input.quantity, input.date);
+    if (guard.allowed) this.inventory.issue(input);
+    return guard;
   }
 
   /** Issues the prepared lines of a requisition and closes it. */
