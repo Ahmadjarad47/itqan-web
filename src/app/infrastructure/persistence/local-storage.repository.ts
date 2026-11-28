@@ -52,24 +52,36 @@ export class LocalStorageRepository<T extends Entity> implements Repository<T> {
   }
 
   async save(entity: T): Promise<void> {
-    const items = await this.items();
+    await this.items();
+    const items = this.current;
     const index = items.findIndex((item) => item.id === entity.id);
     this.persist(index === -1 ? [...items, entity] : items.map((item, i) => (i === index ? entity : item)));
   }
 
   async saveMany(entities: readonly T[]): Promise<void> {
     const incoming = new Map(entities.map((entity) => [entity.id, entity]));
-    const merged = (await this.items()).map((item) => incoming.get(item.id) ?? item);
+    await this.items();
+    const merged = this.current.map((item) => incoming.get(item.id) ?? item);
     const known = new Set(merged.map((item) => item.id));
     this.persist([...merged, ...entities.filter((entity) => !known.has(entity.id))]);
   }
 
   async remove(id: EntityId): Promise<void> {
-    this.persist((await this.items()).filter((item) => item.id !== id));
+    await this.items();
+    this.persist(this.current.filter((item) => item.id !== id));
   }
 
   private get key(): string {
     return STORAGE_NAMESPACE + this.collection;
+  }
+
+  /**
+   * The loaded collection as it is right now. Writers must read it synchronously after
+   * awaiting `items()`: a value passed through the await is stale when several writes are
+   * issued in the same tick, and only the last one would survive.
+   */
+  private get current(): T[] {
+    return this.cache!;
   }
 
   private async items(): Promise<T[]> {

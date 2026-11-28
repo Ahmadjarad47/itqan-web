@@ -1,7 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { Attachment, BomNode, EntityId, MaterialAssignment } from '@domain/models';
 import { BomNodeRepository } from '@domain/ports/repositories';
-import { BomTree, todayIso } from '@domain/rules';
+import { BomTree, nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 export type NewBomNode = Pick<BomNode, 'name' | 'discipline' | 'quantity' | 'unit'> &
@@ -64,11 +64,8 @@ export class BomStore extends EntityStore<BomNode> {
   nextChildCode(parentId: EntityId): string {
     const tree = this.tree();
     const parent = tree.node(parentId)!;
-    const index = tree.children(parentId).length + 1;
-    if (parent.parentId === null) {
-      return `${parent.code.split('-')[0]}-${index}`;
-    }
-    return `${parent.code}.${index}`;
+    const prefix = parent.parentId === null ? `${parent.code.split('-')[0]}-` : `${parent.code}.`;
+    return `${prefix}${nextSequence(tree.children(parentId).map((c) => c.code), prefix)}`;
   }
 
   update(id: EntityId, changes: Partial<Omit<BomNode, 'id' | 'projectId' | 'parentId'>>): void {

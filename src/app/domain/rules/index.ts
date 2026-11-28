@@ -6,3 +6,4 @@ export * from './purchase-flow';
 export * from './mcdm';
 export * from './task-flow';
 export * from './stock-costing';
+export * from './numbering';

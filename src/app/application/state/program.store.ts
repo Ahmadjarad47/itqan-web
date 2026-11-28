@@ -8,7 +8,7 @@ import {
   SerialUnitStatus,
 } from '@domain/models';
 import { ProgramRepository, ProjectModelRepository } from '@domain/ports/repositories';
-import { todayIso } from '@domain/rules';
+import { nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 const COMPANY_KEY = 'erp101.company';
@@ -76,8 +76,8 @@ export class ProjectModelStore extends EntityStore<ProjectModel> {
 
   /** Suggests the next model code, e.g. AM.101 → AM.102. */
   nextCode(projectId: EntityId, projectCode: string): string {
-    const count = this.forProject(projectId).length;
-    return `${projectCode}.${count + 1}`;
+    const prefix = `${projectCode}.`;
+    return `${prefix}${nextSequence(this.forProject(projectId).map((m) => m.code), prefix)}`;
   }
 
   create(projectId: EntityId, data: Pick<ProjectModel, 'code' | 'name' | 'description'>): ProjectModel {

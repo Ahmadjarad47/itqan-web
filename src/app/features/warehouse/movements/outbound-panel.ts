@@ -238,7 +238,11 @@ export class OutboundPanel {
   protected confirmIssue(): void {
     const requisition = this.issuing();
     if (!requisition || this.issueError()) return;
-    this.flows.issueRequisition(requisition.id, this.issueLines(), this.issueDate());
+    const result = this.flows.issueRequisition(requisition.id, this.issueLines(), this.issueDate());
+    if (!result.allowed) {
+      this.toast.warning('لم يتم الصرف', result.reason);
+      return;
+    }
     this.issueOpen.set(false);
     this.toast.success('تم الصرف وتحديث المخزون وسجل العناصر', requisition.number);
   }
@@ -254,7 +258,7 @@ export class OutboundPanel {
     if (this.moveError()) return;
     const m = this.material()!;
     if (this.reason() === 'transfer') {
-      this.inventory.transfer({
+      const result = this.inventory.transfer({
         materialId: m.id,
         from: { warehouseId: this.fromWarehouse()!, shelfId: this.fromShelf() },
         to: { warehouseId: this.toWarehouse()!, shelfId: this.toShelf() },
@@ -262,9 +266,13 @@ export class OutboundPanel {
         date: this.date(),
         reference: this.reference().trim() || 'مناقلة بين المستودعات',
       });
+      if (!result.allowed) {
+        this.toast.warning('لم تتم المناقلة', result.reason);
+        return;
+      }
       this.toast.success('تمت المناقلة', `${m.name} → ${this.warehouses.locationLabel(this.toWarehouse(), this.toShelf())}`);
     } else {
-      this.inventory.issue({
+      const movement = this.inventory.issue({
         materialId: m.id,
         type: 'writeoff',
         warehouseId: this.fromWarehouse(),
@@ -273,6 +281,10 @@ export class OutboundPanel {
         date: this.date(),
         reference: `شطب: ${this.reference().trim()}`,
       });
+      if (!movement) {
+        this.toast.warning('لم يتم الشطب', 'الكمية أكبر من المتوفر');
+        return;
+      }
       this.toast.success('تم شطب الكمية من المخزون', m.name);
     }
     this.itemId.set(null);

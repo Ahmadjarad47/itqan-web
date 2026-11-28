@@ -226,7 +226,7 @@ export class ItemCardPage {
   protected confirmTransfer(): void {
     const from = this.transferFrom();
     if (!from || this.transferError()) return;
-    this.inventory.transfer({
+    const result = this.inventory.transfer({
       materialId: this.materialId(),
       from,
       to: { warehouseId: this.toWarehouse()!, shelfId: this.toShelf() },
@@ -234,6 +234,10 @@ export class ItemCardPage {
       date: todayIso(),
       reference: this.transferRef().trim() || 'مناقلة بين المستودعات',
     });
+    if (!result.allowed) {
+      this.toast.warning('لم تتم المناقلة', result.reason);
+      return;
+    }
     this.transferOpen.set(false);
     this.toast.success('تمت المناقلة', `${this.transferQty()} ← ${this.warehouses.locationLabel(this.toWarehouse(), this.toShelf())}`);
   }

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
-import { EntityId, IsoDate } from '@domain/models';
-import { isStageDone, todayIso } from '@domain/rules';
+import { EntityId, IsoDate, StockLocation } from '@domain/models';
+import { adjustLocations, canWithdraw, deductAnywhere, Guard, isStageDone, todayIso } from '@domain/rules';
 import { IssueInput, InventoryStore, ReceiptInput } from '../state/inventory.store';
 import { PurchaseStore } from '../state/purchase.store';
 import { RequisitionStore } from '../state/warehouse.store';
@@ -41,12 +41,13 @@ export class WarehouseUseCase {
   }
 
   /** Issues the prepared lines of a requisition and closes it. */
-  issueRequisition(requisitionId: EntityId, lines: readonly RequisitionIssueLine[], date: IsoDate = todayIso()): void {
+  issueRequisition(requisitionId: EntityId, lines: readonly RequisitionIssueLine[], date: IsoDate = todayIso()): Guard {
     const requisition = this.requisitions.find(requisitionId);
-    if (!requisition) return;
-    lines
-      .filter((line) => line.quantity > 0)
-      .forEach((line) => {
+    if (!requisition) return { allowed: false, reason: 'طلب الاحتياج غير موجود' };
+    const issued = lines.filter((line) => line.quantity > 0);
+    const guard = this.checkStock(issued);
+    if (!guard.allowed) return guard;
+    issued.forEach((line) => {
         const input: IssueInput = {
           materialId: line.materialId,
           type: 'issue',
@@ -59,8 +60,26 @@ export class WarehouseUseCase {
           sellPrice: line.sellPrice,
           requisitionId,
         };
-        this.inventory.issue(input);
-      });
+      this.inventory.issue(input);
+    });
     this.requisitions.setStatus(requisitionId, 'delivered');
+    return guard;
+  }
+
+  /** Checks the lines together, so two lines cannot both claim the same stock. */
+  private checkStock(lines: readonly RequisitionIssueLine[]): Guard {
+    const remaining = new Map<EntityId, readonly StockLocation[]>();
+    for (const line of lines) {
+      const locations = remaining.get(line.materialId) ?? this.inventory.find(line.materialId)?.locations ?? [];
+      const guard = canWithdraw(locations, line.warehouseId, line.shelfId, line.quantity);
+      if (!guard.allowed) return guard;
+      remaining.set(
+        line.materialId,
+        line.warehouseId
+          ? adjustLocations(locations, line.warehouseId, line.shelfId, -line.quantity)
+          : deductAnywhere(locations, line.quantity),
+      );
+    }
+    return { allowed: true };
   }
 }

@@ -1,4 +1,5 @@
 import { CostMethod, IsoDate, Material, ProfitMargin, StockLocation, StockMovement } from '../models';
+import type { Guard } from './purchase-flow';
 
 /** A purchase batch still (partly) on hand. */
 export interface CostLot {
@@ -44,8 +45,11 @@ export function compareMovements(a: StockMovement, b: StockMovement): number {
   return movementDate(a).localeCompare(movementDate(b)) || a.at.localeCompare(b.at);
 }
 
+/** Quantities are kept to 6 decimals so float remainders never survive as stock or batches. */
+const roundQty = (value: number) => round(value, 6);
+
 /** Removes `quantity` from the oldest lots first and returns the cost taken out. */
-export function consumeFifo(lots: readonly CostLot[], quantity: number): { cost: number; lots: CostLot[] } {
+export function consumeFifo(lots: readonly CostLot[], quantity: number, fallbackCost = 0): { cost: number; lots: CostLot[] } {
   let remaining = quantity;
   let cost = 0;
   const next: CostLot[] = [];
@@ -56,11 +60,12 @@ export function consumeFifo(lots: readonly CostLot[], quantity: number): { cost:
     }
     const taken = Math.min(lot.quantity, remaining);
     cost += taken * lot.unitCost;
-    remaining -= taken;
-    if (lot.quantity - taken > 0) next.push({ ...lot, quantity: lot.quantity - taken });
+    remaining = roundQty(remaining - taken);
+    const left = roundQty(lot.quantity - taken);
+    if (left > 0) next.push({ ...lot, quantity: left });
   }
   // Issuing more than the recorded batches: price the excess at the last known cost.
-  if (remaining > 0) cost += remaining * (lots.at(-1)?.unitCost ?? 0);
+  if (remaining > 0) cost += remaining * (lots.at(-1)?.unitCost ?? fallbackCost);
   return { cost, lots: next };
 }
 
@@ -87,7 +92,7 @@ export function buildLedger(movements: readonly StockMovement[], method: CostMet
     } else if (qty > 0) {
       const price = movement.unitCost ?? (quantity > 0 ? value / quantity : lastCost);
       lots.push({ date, quantity: qty, unitCost: price, expiryDate: movement.expiryDate ?? null, reference: movement.documentNo || movement.reference });
-      quantity += qty;
+      quantity = roundQty(quantity + qty);
       value += qty * price;
       lastCost = price;
       unitPrice = price;
@@ -95,11 +100,11 @@ export function buildLedger(movements: readonly StockMovement[], method: CostMet
     } else if (qty < 0) {
       const out = Math.abs(qty);
       const average = quantity > 0 ? value / quantity : lastCost;
-      const fifo = consumeFifo(lots, out);
+      const fifo = consumeFifo(lots, out, lastCost);
       lots = fifo.lots;
       const cost = method === 'fifo' ? fifo.cost : out * average;
       issuedCost = cost;
-      quantity = Math.max(0, quantity - out);
+      quantity = Math.max(0, roundQty(quantity - out));
       value = quantity > 0 ? Math.max(0, value - cost) : 0;
       if (method === 'average') {
         // Batches stay FIFO for expiry tracking but are revalued at the average cost.
@@ -130,7 +135,7 @@ export function buildLedger(movements: readonly StockMovement[], method: CostMet
 /** Cost of issuing `quantity` now, without recording anything. */
 export function previewIssueCost(ledger: Ledger, method: CostMethod, quantity: number): number {
   if (method === 'average') return quantity * ledger.averageCost;
-  return consumeFifo(ledger.lots, quantity).cost;
+  return consumeFifo(ledger.lots, quantity, ledger.averageCost).cost;
 }
 
 /** Selling price = unit cost + profit margin (fixed amount or percentage). */
@@ -150,6 +155,27 @@ export function adjustLocations(
     return delta > 0 ? [...locations, { warehouseId, shelfId, quantity: delta }] : [...locations];
   }
   return locations.map((l, i) => (i === index ? { ...l, quantity: Math.max(0, round(l.quantity + delta)) } : l));
+}
+
+/** Quantity on hand in one location, or in all of them when no warehouse is given. */
+export function availableQuantity(locations: readonly StockLocation[], warehouseId: string | null, shelfId: string | null): number {
+  return totalQuantity(
+    warehouseId === null ? locations : locations.filter((l) => l.warehouseId === warehouseId && l.shelfId === shelfId),
+  );
+}
+
+/** Stock can never leave a place that does not hold it. */
+export function canWithdraw(
+  locations: readonly StockLocation[],
+  warehouseId: string | null,
+  shelfId: string | null,
+  quantity: number,
+): Guard {
+  if (!(quantity > 0)) return { allowed: false, reason: 'الكمية يجب أن تكون أكبر من صفر' };
+  if (quantity > availableQuantity(locations, warehouseId, shelfId)) {
+    return { allowed: false, reason: 'الكمية أكبر من المتوفر' };
+  }
+  return { allowed: true };
 }
 
 /** Takes an outgoing quantity from the fullest locations first (when no location is given). */

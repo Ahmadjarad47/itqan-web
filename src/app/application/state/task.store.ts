@@ -1,7 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { EntityId, RejectReason, TaskProgressEntry, TaskStatus, WorkTask } from '@domain/models';
 import { TaskRepository } from '@domain/ports/repositories';
-import { canTransition, nowIso, unreadMessages } from '@domain/rules';
+import { canTransition, nextSequence, nowIso, unreadMessages } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 export type NewTask = Pick<
@@ -54,7 +54,7 @@ export class TaskStore extends EntityStore<WorkTask> {
     return this.insert({
       ...data,
       id: newId('t'),
-      number: `TSK-${101 + this.all().length}`,
+      number: `TSK-${nextSequence(this.all().map((t) => t.number), 'TSK-', 101)}`,
       status: 'sent',
       archived: false,
       seenByAssignee: false,

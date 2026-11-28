@@ -10,7 +10,7 @@ import {
   SupplierQuote,
 } from '@domain/models';
 import { PurchaseRepository } from '@domain/ports/repositories';
-import { createPurchaseStages, DEFAULT_CRITERIA, todayIso } from '@domain/rules';
+import { createPurchaseStages, DEFAULT_CRITERIA, nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 const EMPTY_QUOTE_DETAILS: Omit<SupplierQuote, 'id' | 'supplierId' | 'unitPrice' | 'leadTimeDays' | 'note'> = {
@@ -38,13 +38,14 @@ export class PurchaseStore extends EntityStore<PurchaseRequest> {
   readonly sorted = computed(() => [...this.all()].sort((a, b) => b.number.localeCompare(a.number)));
 
   create(data: NewPurchase): PurchaseRequest {
-    const sequence = this.all().length + 1;
+    const prefix = `PR-${new Date().getFullYear()}-`;
+    const sequence = nextSequence(this.all().map((r) => r.number), prefix);
     return this.insert({
       materialId: null,
       warehouseId: null,
       ...data,
       id: newId('pr'),
-      number: `PR-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`,
+      number: `${prefix}${String(sequence).padStart(3, '0')}`,
       supplierId: null,
       unitPrice: null,
       stages: createPurchaseStages(),

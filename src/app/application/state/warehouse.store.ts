@@ -1,7 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { CatalogList, CatalogOption, EntityId, Requisition, RequisitionLine, RequisitionStatus, Shelf, Warehouse } from '@domain/models';
 import { CatalogOptionRepository, RequisitionRepository, WarehouseRepository } from '@domain/ports/repositories';
-import { todayIso } from '@domain/rules';
+import { nextSequence, todayIso } from '@domain/rules';
 import { EntityStore, newId } from './entity-store';
 
 export interface WarehouseTreeRow {
@@ -166,11 +166,12 @@ export class RequisitionStore extends EntityStore<Requisition> {
   readonly open = computed(() => this.all().filter((r) => r.status !== 'delivered' && r.status !== 'cancelled'));
 
   create(data: NewRequisition, paperNumber?: string): Requisition {
-    const sequence = this.all().filter((r) => r.origin === data.origin).length + 1;
+    const prefix = `${data.origin === 'paper' ? 'MRP' : 'MR'}-${new Date().getFullYear()}-`;
+    const sequence = nextSequence(this.all().map((r) => r.number), prefix);
     const number =
       data.origin === 'paper' && paperNumber?.trim()
         ? paperNumber.trim()
-        : `${data.origin === 'paper' ? 'MRP' : 'MR'}-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`;
+        : `${prefix}${String(sequence).padStart(3, '0')}`;
     return this.insert({
       ...data,
       id: newId('rq'),

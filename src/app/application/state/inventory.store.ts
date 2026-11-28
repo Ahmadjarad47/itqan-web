@@ -12,9 +12,12 @@ import {
 import { MaterialRepository, StockMovementRepository } from '@domain/ports/repositories';
 import {
   adjustLocations,
+  availableQuantity,
   buildLedger,
+  canWithdraw,
   compareMovements,
   deductAnywhere,
+  Guard,
   Ledger,
   nowIso,
   todayIso,
@@ -245,11 +248,18 @@ export class InventoryStore extends EntityStore<Material> {
     return movement;
   }
 
-  /** Outgoing quantity (صرف، إتلاف، استهلاك); the cost is taken from the history. */
+  /**
+   * Outgoing quantity (صرف، إتلاف، استهلاك); the cost is taken from the history.
+   * Returns nothing, and records nothing, when the stock does not cover it.
+   */
   issue(input: IssueInput): StockMovement | undefined {
     const material = this.find(input.materialId);
-    if (!material) return undefined;
     const quantity = Math.abs(input.quantity);
+    if (!material || !canWithdraw(material.locations, input.warehouseId, input.shelfId, quantity).allowed) return undefined;
+    return this.recordIssue(input, quantity);
+  }
+
+  private recordIssue(input: IssueInput, quantity: number): StockMovement {
     const movement = this.record({
       materialId: input.materialId,
       type: input.type,
@@ -264,7 +274,7 @@ export class InventoryStore extends EntityStore<Material> {
     });
     // Store the cost actually charged so the history keeps it even if prices change later.
     const row = this.ledger(input.materialId)?.rows.find((r) => r.movement.id === movement.id);
-    if (row?.issuedCost !== null && row?.issuedCost !== undefined) {
+    if (quantity > 0 && row?.issuedCost !== null && row?.issuedCost !== undefined) {
       this.patchMovement(movement.id, { unitCost: row.issuedCost / quantity });
     }
     this.applyLocations(input.materialId, (l) =>
@@ -274,15 +284,20 @@ export class InventoryStore extends EntityStore<Material> {
   }
 
   /** Moves stock between two locations (مناقلة بين المستودعات). */
-  transfer(input: TransferInput): void {
-    const transferId = newId('tr');
+  transfer(input: TransferInput): Guard {
+    const material = this.find(input.materialId);
+    if (!material) return { allowed: false, reason: 'العنصر غير موجود' };
     const quantity = Math.abs(input.quantity);
+    const guard = canWithdraw(material.locations, input.from.warehouseId, input.from.shelfId, quantity);
+    if (!guard.allowed) return guard;
+    const transferId = newId('tr');
     const base = { materialId: input.materialId, type: 'transfer' as const, reference: input.reference, date: input.date, transferId };
     this.record({ ...base, quantity: -quantity, warehouseId: input.from.warehouseId, shelfId: input.from.shelfId });
     this.record({ ...base, quantity, warehouseId: input.to.warehouseId, shelfId: input.to.shelfId });
     this.applyLocations(input.materialId, (l) =>
       adjustLocations(adjustLocations(l, input.from.warehouseId, input.from.shelfId, -quantity), input.to.warehouseId, input.to.shelfId, quantity),
     );
+    return guard;
   }
 
   /** Legacy entry point used by production consumption and quick adjustments. */
@@ -303,15 +318,24 @@ export class InventoryStore extends EntityStore<Material> {
       });
       return;
     }
-    this.issue({
-      materialId,
-      type: type === 'writeoff' || type === 'consumption' ? type : 'issue',
-      warehouseId: null,
-      shelfId: null,
-      quantity,
-      date: todayIso(),
-      reference,
-    });
+    const material = this.find(materialId);
+    if (!material) return;
+    // Production is never blocked by a stock gap: take what is on hand and record the shortage.
+    const requested = Math.abs(quantity);
+    const taken = Math.min(requested, availableQuantity(material.locations, null, null));
+    const shortage = Math.round((requested - taken) * 10000) / 10000;
+    this.recordIssue(
+      {
+        materialId,
+        type: type === 'writeoff' || type === 'consumption' ? type : 'issue',
+        warehouseId: null,
+        shelfId: null,
+        quantity: taken,
+        date: todayIso(),
+        reference: shortage > 0 ? `${reference} (نقص ${shortage})` : reference,
+      },
+      taken,
+    );
   }
 
   private applyLocations(id: EntityId, change: (locations: readonly StockLocation[]) => StockLocation[]): void {
